@@ -1,0 +1,35 @@
+reference_name, STRING, NULLABLE, Reference name.
+start_position, INTEGER, NULLABLE, Start position (0-based). Corresponds to the first base of the string of reference bases.
+end_position, INTEGER, NULLABLE, End position (0-based). Corresponds to the first base after the last base in the reference allele.
+reference_bases, STRING, NULLABLE, Reference bases.
+alternate_bases, RECORD, REPEATED, One record for each alternate base (if any).
+alternate_bases.alt, STRING, NULLABLE, Alternate base.
+alternate_bases.AC, INTEGER, NULLABLE, Allele count in genotypes for each ALT allele in the same order as listed
+alternate_bases.AF, FLOAT, NULLABLE, Allele Frequency for each ALT allele in the same order as listed
+names, STRING, REPEATED, Variant names (e.g. RefSNP ID).
+quality, FLOAT, NULLABLE, Phred-scaled quality score (-10log10 prob(call is wrong)). Higher values imply better quality.
+filter, STRING, REPEATED, List of failed filters (if any) or "PASS" indicating the variant has passed all filters.
+call, RECORD, REPEATED, One record for each call.
+call.name, STRING, NULLABLE, Name of the call.
+call.genotype, INTEGER, REPEATED, Genotype of the call. "-1" is used in cases where the genotype is not called.
+call.phaseset, STRING, NULLABLE, Phaseset of the call (if any). "*" is used in cases where the genotype is phased but no phase set ("PS" in FORMAT) was specified.
+call.AD, INTEGER, REPEATED, Allelic depths for the ref and alt alleles in the order listed
+call.DP, INTEGER, NULLABLE, Approximate read depth (reads with MQ=255 or with bad mates are filtered)
+call.GQ, INTEGER, NULLABLE, Genotype Quality
+call.MIN_DP, INTEGER, NULLABLE, Minimum DP observed within the GVCF block
+call.PGT, STRING, NULLABLE, Physical phasing haplotype information describing how the alternate alleles are phased in relation to one another
+call.PID, STRING, NULLABLE, Physical phasing ID information where each unique ID within a given sample (but not across samples) connects records within a phasing group
+call.PL, INTEGER, REPEATED, Normalized Phred-scaled likelihoods for genotypes as defined in the VCF specification
+call.SB, INTEGER, REPEATED, Per-sample component statistics which comprise the Fisher's Exact Test to detect strand bias.
+AN, INTEGER, NULLABLE, Total number of alleles in called genotypes
+BaseQRankSum, FLOAT, NULLABLE, Z-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities
+ClippingRankSum, FLOAT, NULLABLE, Z-score From Wilcoxon rank sum test of Alt vs. Ref number of hard clipped bases
+DP, INTEGER, NULLABLE, Approximate read depth; some reads may have been filtered
+ExcessHet, FLOAT, NULLABLE, Phred-scaled p-value for exact test of excess heterozygosity
+MQ, FLOAT, NULLABLE, RMS Mapping Quality
+MQRankSum, FLOAT, NULLABLE, Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities
+MQ_DP, INTEGER, NULLABLE, Depth over variant samples for better MQ calculation
+QUALapprox, INTEGER, NULLABLE, Sum of PL[0] values; used to approximate the QUAL score
+RAW_MQ, FLOAT, NULLABLE, Raw data for RMS Mapping Quality
+ReadPosRankSum, FLOAT, NULLABLE, Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias
+VarDP, INTEGER, NULLABLE, (informative) depth over variant genotypes
