@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 public final class BlahVetCreation {
 
     private static final String DELIMITER = ",";
+    // GT:AD:DP:GQ:PL:SB       0/1:232,19,0:251:8:8,0,10988,706,11042,11748:143,89,0,19
 
     /**
      * Expected headers for the Variant Table (VET)
@@ -69,33 +70,33 @@ public final class BlahVetCreation {
         ALTERNATE_BASES_AS_RAW_MQ { // Required
             public String getColumnValue(final VariantContext variant) throws IOException {
                 String out = variant.getAttributeAsString("AS_RAW_MQ", null);
-                if (out.equals(null)) {
+                if (out == null) {
                     throw new IllegalArgumentException("Cannot be missing required value for alternate_bases.AS_RAW_MQ");
                 }
                 return out;
             }
         },
 
-        ALTERNATE_BASES_AS_MQ_DP { // Required // TODO check for what this should be
+        /*ALTERNATE_BASES_AS_MQ_DP { // Required // TODO check for what this should be
             public String getColumnValue(final VariantContext variant) throws IOException {
                 String out = variant.getAttributeAsString("AS_MQ_DP", null);
-                if (out.equals(null)) {
-                    throw new IllegalArgumentException("Cannot be missing required value for alternate_bases.AS_MQ_DP");
+                if (out == null) {
+                    //throw new IllegalArgumentException("Cannot be missing required value for alternate_bases.AS_MQ_DP");
                 }
                 return out;
             }
-        },
+        },*/
 
         ALTERNATE_BASES_AS_RAW_MQRANKSUM {
             public String getColumnValue(final VariantContext variant) {
-                return variant.getAttributeAsString("AS_RAW_MQRankSum", null);
+                return variant.getAttributeAsString("AS_RAW_MQRankSum", "");
             }
         },
 
         ALTERNATE_BASES_AS_QUALAPPROX { // Required
             public String getColumnValue(final VariantContext variant) throws IOException {
                 String out = variant.getAttributeAsString("AS_QUALapprox", null);
-                if (out.equals(null)) {
+                if (out == null) {
                     throw new IllegalArgumentException("Cannot be missing required value for alternate_bases.AS_QUALapprox");
                 }
                 return out;
@@ -104,14 +105,14 @@ public final class BlahVetCreation {
 
         ALTERNATE_BASES_AS_RAW_READPOSRANKSUM {
             public String getColumnValue(final VariantContext variant) {
-                return variant.getAttributeAsString("AS_RAW_ReadPosRankSum", null);
+                return variant.getAttributeAsString("AS_RAW_ReadPosRankSum", "");
             }
         },
 
         ALTERNATE_BASES_AS_SB_TABLE { // Required
             public String getColumnValue(final VariantContext variant) throws IOException {
                 String out = variant.getAttributeAsString("AS_SB_TABLE", null);
-                if (out.equals(null)) {
+                if (out == null) {
                     throw new IllegalArgumentException("Cannot be missing required value for alternate_bases.AS_SB_TABLE");
                 }
                 return out;
@@ -165,13 +166,13 @@ public final class BlahVetCreation {
 
         CALL_PGT {
             public String getColumnValue(final VariantContext variant) {
-                return String.valueOf(variant.getGenotype(0).getAnyAttribute("PGT"));
+                return variant.getGenotype(0).hasAnyAttribute("PGT") ? String.valueOf(variant.getGenotype(0).getAnyAttribute("PGT")) : "";
             }
         },
 
         CALL_PID {
             public String getColumnValue(final VariantContext variant) {
-                return String.valueOf(variant.getGenotype(0).getAnyAttribute("PID")); // TODO check in with Laura about PID
+                return variant.getGenotype(0).hasAnyAttribute("PID") ? String.valueOf(variant.getGenotype(0).getAnyAttribute("PID")) : "";
             }
         },
 
@@ -189,7 +190,7 @@ public final class BlahVetCreation {
     }
 
 
-    public static List<String> createTSV(final VariantContext variant) throws IOException {
+    public static List<String> createVariantRow(final VariantContext variant) throws IOException {
         List<String> row = new ArrayList<>();
 
         for ( final HeaderFieldEnum fieldEnum : HeaderFieldEnum.values() ) {
