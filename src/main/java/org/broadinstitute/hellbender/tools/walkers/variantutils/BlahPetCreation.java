@@ -1,28 +1,27 @@
 package org.broadinstitute.hellbender.tools.walkers.variantutils;
 
-import com.fasterxml.jackson.annotation.JsonValue;
 import htsjdk.variant.variantcontext.VariantContext;
-import org.broadinstitute.barclay.argparser.CommandLineProgramProperties;
-import org.broadinstitute.hellbender.cmdline.programgroups.ExampleProgramGroup;
-
-import java.lang.reflect.Executable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
-@CommandLineProgramProperties( // TODO -- how should this be edited?
-        summary = "Creates position expanded table",
-        oneLineSummary = "Creates position expanded table",
-        programGroup = ExampleProgramGroup.class,
-        omitFromCommandLine = true
-)
 public final class BlahPetCreation {
 
+    private static final String COLUMNDELIMITER = "/t";
+
     /**
-     * Expected headers for the Variant Table (VET)
+     * Expected headers for the Position Table (PET)
      */
+    public enum HeaderFieldEnum {
+        POSITION,
+        SAMPLE,
+        STATE,
+    }
+
     public enum GQStateEnum {
         VARIANT("v"),
-        DELETION("*"), // TODO is this s or * ?
+        STAR("*"), // TODO is this s or * ?
         ZERO("0"),
         TEN("1"),
         TWENTY("2"),
@@ -40,22 +39,30 @@ public final class BlahPetCreation {
 
     }
 
-    public static List<String> createTSV(final VariantContext variant) throws Exception {
+    public static List<List<String>> createPositionRows(final VariantContext variant) throws Exception {
 
-        // TODO hardcode the dropped band for the GQ
-
-        List<String> row = new ArrayList<>();
+        List<List<String>> rows = new ArrayList<>();
         String sampleName = variant.getSampleNamesOrderedByName().get(0);
 
-        if (variant.isVariant()){
-             row.add(variant.getStart() + "," + sampleName + "," + GQStateEnum.VARIANT.toString());
+        if (!variant.isReferenceBlock()) {
+            List<String> row = new ArrayList<>();
+            row.add(String.valueOf(variant.getStart()));
+            row.add(sampleName);
+            row.add(GQStateEnum.VARIANT.toString());
+            rows.add(row);
+
             //if variant is variant and has additional positions--must be a deletion: add `*` state
             for (int i = variant.getStart() + 1 ; i < variant.getEnd(); i++){
-                row.add(i + "," + sampleName + "," + GQStateEnum.DELETION.value);
+                row = new ArrayList<>();
+                row.add(String.valueOf(i));
+                row.add(sampleName);
+                row.add(GQStateEnum.STAR.toString());
+                rows.add(row);
             }
         } else {
+            // TODO check in the tool to make sure it's only one sample
             int genotypeQual = variant.getGenotype(0).getGQ();  // ok because we only have one sample
-            GQStateEnum state = null;
+            GQStateEnum state;
 
             if (genotypeQual < 10) {
                 state = GQStateEnum.ZERO;
@@ -70,24 +77,33 @@ public final class BlahPetCreation {
             } else if (genotypeQual < 60) {
                 state = GQStateEnum.FIFTY;
             } else {
-                throw new Exception("BLHLBHLBHALBHALBHLBHL");
+                throw new Exception("BLAHALBLAHALBLAHALB");
             }
 
-            for (int i = variant.getStart(); i < variant.getEnd(); i++){ // break up ref blocks
-                row.add(i + "," + sampleName + "," + state.value);
+            for (int i = variant.getStart(); i <= variant.getEnd(); i++){ // break up ref blocks
+                List<String> row = new ArrayList<>();
+                row.add(String.valueOf(i));
+                row.add(sampleName);
+                row.add(state.value);
+                rows.add(row);
             }
         }
 
-        return row;
+        return rows;
     }
 
     public static List<String> createMissingTSV(int start, int end, String sampleName) {
         List<String> row = new ArrayList<>();
 
         for (int i = start; i < end; i ++){
-            row.add(i + "," + sampleName + "," + GQStateEnum.MISSING.value);
+            String stringifyRow = new StringBuilder(i).append(COLUMNDELIMITER).append(sampleName).append(COLUMNDELIMITER).append(GQStateEnum.MISSING.value).toString();
+            row.add(stringifyRow);
         }
 
         return row;
+    }
+
+    public static List<String> getHeaders() {
+        return Arrays.stream(HeaderFieldEnum.values()).map(String::valueOf).collect(Collectors.toList());
     }
 }
