@@ -59,11 +59,11 @@ public final class BlahVetCreation {
 
         ALTERNATE_BASES_ALT {
             public String getColumnValue(final VariantContext variant) {
-                String output = "";
+                List<String> outList = new ArrayList<>();
                 for(Allele a : variant.getAlternateAlleles()) {
-                    output += a.getBaseString() + "|";
+                    outList.add(a.getDisplayString());
                 }
-                return output;
+                return String.join(DELIMITER, outList);
             }
         },
 
