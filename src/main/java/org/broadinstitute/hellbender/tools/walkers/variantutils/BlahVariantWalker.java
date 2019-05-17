@@ -5,12 +5,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.broadinstitute.barclay.argparser.Argument;
 import org.broadinstitute.barclay.argparser.CommandLineProgramProperties;
+import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.ExampleProgramGroup;
-import org.broadinstitute.hellbender.engine.FeatureContext;
-import org.broadinstitute.hellbender.engine.GATKPathSpecifier;
-import org.broadinstitute.hellbender.engine.ReadsContext;
-import org.broadinstitute.hellbender.engine.ReferenceContext;
-import org.broadinstitute.hellbender.engine.VariantWalker;
+import org.broadinstitute.hellbender.engine.*;
 import org.broadinstitute.hellbender.utils.tsv.SimpleXSVWriter;
 
 import java.io.IOException;
@@ -26,14 +23,17 @@ import java.util.*;
         programGroup = ExampleProgramGroup.class,
         omitFromCommandLine = true
 )
-public final class BlahVariantWalker extends VariantWalker {
+public final class BlahVariantWalker extends ReferenceWalker {
     static final Logger logger = LogManager.getLogger(BlahVariantWalker.class);
 
     private final int GQ_CUTOFF = 60;
     private final char SEPARATOR = '\t';
     private SimpleXSVWriter vetWriter = null;
     private SimpleXSVWriter petWriter = null;
-    private Integer lastSeenPosition = null;
+
+    private String sampleName = null;
+    private Set<Integer> missingPositions = null;
+    private VariantContext currentVariantContext = null;
 
 
     @Argument(fullName = "vet-table-out-path",
@@ -41,16 +41,22 @@ public final class BlahVariantWalker extends VariantWalker {
             doc="Path to where the variants expanded table should be written")
     public GATKPathSpecifier vetOutput = null;
 
-
     @Argument(fullName = "pet-table-out-path",
             shortName = "PO",
             doc="Path to where the positions table should be written")
     public GATKPathSpecifier petOutput = null;
 
+    @Argument(fullName = StandardArgumentDefinitions.VARIANT_LONG_NAME,
+            shortName = StandardArgumentDefinitions.VARIANT_SHORT_NAME,
+            doc="variants to count overlaps of")
+    private FeatureInput<VariantContext> variants;
 
 
     @Override
     public void onTraversalStart() {
+
+        missingPositions = new HashSet<>();
+
         try {
             List<String> vetHeader = BlahVetCreation.getHeaders();
             vetWriter = new SimpleXSVWriter(vetOutput.toPath(), SEPARATOR);
@@ -70,38 +76,50 @@ public final class BlahVariantWalker extends VariantWalker {
     }
 
     @Override
-    public void apply(final VariantContext variant, final ReadsContext readsContext, final ReferenceContext referenceContext, final FeatureContext featureContext) {
-        final String sampleName = variant.getGenotype(0).getSampleName();
-        //logger.info("Current variant: " + variant);
-        // This is a wrapper to loop thru createTSV function -- and split out the VET and PET tables
-
-        // create VET output
-        if (!variant.isReferenceBlock()) {
-            final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(variant);
-
-            // write the variant to the XSV
-            SimpleXSVWriter.LineBuilder vetLine = vetWriter.getNewLineBuilder();
-            vetLine.setRow(TSVLineToCreateVet);
-            vetLine.write();
+    public void apply(final ReferenceContext referenceContext, final ReadsContext readsContext, final FeatureContext featureContext) {
+        if(featureContext.getValues(variants).isEmpty()){
+            missingPositions.add(referenceContext.getInterval().getStart());
         }
-        // create PET output
-        if (variant.getGenotype(0).getGQ() < GQ_CUTOFF) {
-            List<List<String>> TSVLinesToCreatePet;
-            TSVLinesToCreatePet = BlahPetCreation.createPositionRows(variant);
+        else {
+            VariantContext variant = featureContext.getValues(variants).get(0);
 
-            // write the position to the XSV
-            for (List<String> TSVLineToCreatePet: TSVLinesToCreatePet) {
-                petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
+            if (sampleName == null) {
+                sampleName = variant.getGenotype(0).getSampleName();
+            }
+
+            if (variant.equals(currentVariantContext)) {
+                return;
+            }
+            currentVariantContext = variant;
+
+            // create VET output
+            if (!variant.isReferenceBlock()) {
+                final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(variant);
+
+                // write the variant to the XSV
+                SimpleXSVWriter.LineBuilder vetLine = vetWriter.getNewLineBuilder();
+                vetLine.setRow(TSVLineToCreateVet);
+                vetLine.write();
+            }
+            // create PET output
+            if (variant.getGenotype(0).getGQ() < GQ_CUTOFF) {
+                List<List<String>> TSVLinesToCreatePet;
+                TSVLinesToCreatePet = BlahPetCreation.createPositionRows(variant);
+
+                // write the position to the XSV
+                for (List<String> TSVLineToCreatePet : TSVLinesToCreatePet) {
+                    petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
+                }
             }
         }
+    }
 
-        // create "missing" variants
-        if (!(lastSeenPosition == null) && !(lastSeenPosition + 1 == variant.getStart())){
-            // actually make sure this is a position we call over -- may want to use interval lists (ask David)
-            BlahPetCreation.createMissingTSV(lastSeenPosition + 1, variant.getEnd(), sampleName);
+    @Override
+    public Object onTraversalSuccess(){
+        for (int position : missingPositions){
+            petWriter.getNewLineBuilder().setRow(BlahPetCreation.createMissingTSVRow(position, sampleName)).write();
         }
-
-        lastSeenPosition = variant.getEnd();
+        return 0;
     }
 
     @Override

@@ -90,18 +90,13 @@ public final class BlahPetCreation {
         return rows;
     }
 
-    public static List<List<String>> createMissingTSV(int start, int end, String sampleName) {
-        List<List<String>> rows = new ArrayList<>();
-
-        for (int position = start; position < end; position ++){
+    public static List<String> createMissingTSVRow(int position, String sampleName) {
             List<String> row = new ArrayList<>();
             row.add(String.valueOf(position));
             row.add(sampleName);
             row.add(GQStateEnum.MISSING.value);
-            rows.add(row);
-        }
+            return row;
 
-        return rows;
     }
 
     public static List<String> getHeaders() {
