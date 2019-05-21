@@ -46,7 +46,7 @@ public final class BlahPetCreation {
             List<String> row = new ArrayList<>();
             row.add(String.valueOf(variant.getStart()));
             row.add(sampleName);
-            row.add(GQStateEnum.VARIANT.toString());
+            row.add(GQStateEnum.VARIANT.value);
             rows.add(row);
 
             //if variant is variant and has additional positions--must be a deletion: add `*` state
@@ -54,7 +54,7 @@ public final class BlahPetCreation {
                 row = new ArrayList<>();
                 row.add(String.valueOf(i));
                 row.add(sampleName);
-                row.add(GQStateEnum.STAR.toString());
+                row.add(GQStateEnum.STAR.value);
                 rows.add(row);
             }
         } else {
