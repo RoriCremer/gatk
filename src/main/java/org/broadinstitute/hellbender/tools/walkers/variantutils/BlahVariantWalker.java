@@ -51,6 +51,8 @@ public final class BlahVariantWalker extends ReferenceWalker {
             doc="variants to count overlaps of")
     private FeatureInput<VariantContext> variants;
 
+    // TODO add arg for exomes vs genomes
+
 
     @Override
     public void onTraversalStart() {

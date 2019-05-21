@@ -2,7 +2,6 @@ package org.broadinstitute.hellbender.tools.walkers.variantutils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFEncoder;
 import org.apache.commons.lang.StringUtils;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
 import org.broadinstitute.hellbender.utils.variant.GATKVariantContextUtils;
@@ -77,7 +76,7 @@ public final class BlahVetCreation {
      * VarDP,
      */
 
-    public enum GenomeHeaderFieldEnum {
+    public enum HeaderFieldEnum { // GenomeHeaderFieldEnum
         // TODO is this where the validation step (required vs not) lives  -- fail if there is missing data for a required field
         // and just leave it empty if not required
 
@@ -85,15 +84,14 @@ public final class BlahVetCreation {
 
         START_POSITION {
             public String getColumnValue(final VariantContext variant) {
-                final String startPosition = String.valueOf(variant.getStart());
-                return startPosition; // TODO see what James' writer does
+                return String.valueOf(variant.getStart());
             }
         },
 
         REFERENCE_BASES { // Required
-            public String getColumnValue(final VariantContext variant) throws IOException {
+            public String getColumnValue(final VariantContext variant) {
                 final String referenceBase = variant.getReference().getBaseString();
-                if (referenceBase.equals(null)) {
+                if (referenceBase == null) {
                     throw new IllegalArgumentException("Cannot be missing required value for reference_bases");
                 }
                 return referenceBase;
@@ -103,12 +101,13 @@ public final class BlahVetCreation {
         // ALTERNATE_BASES
 
         ALTERNATE_BASES_ALT {
+            //TODO what if this field is null?
             public String getColumnValue(final VariantContext variant) {
                 List<String> outList = new ArrayList<>();
                 for(Allele a : variant.getAlternateAlleles()) {
                     outList.add(a.getDisplayString());
                 }
-                return String.join(DELIMITER, outList);
+                return String.join(VCFConstants.INFO_FIELD_ARRAY_SEPARATOR, outList);
             }
         },
 
@@ -122,7 +121,15 @@ public final class BlahVetCreation {
 
         CALL_GENOTYPE {
             public String getColumnValue(final VariantContext variant) {
-                return variant.getGenotype(0).getGenotypeString();
+                ArrayList<Integer> allele_indices = new ArrayList<>();
+                for (Allele allele : variant.getGenotype(0).getAlleles()){
+                    allele_indices.add(GATKVariantContextUtils.indexOfAllele(variant, allele, true, true, true  ));
+                }
+
+                if (allele_indices.size() != 2){
+                    throw new IllegalArgumentException("GT doesnt have two alleles");
+                }
+                return variant.getGenotype(0).isPhased() ? StringUtils.join(allele_indices, VCFConstants.PHASED) : StringUtils.join(allele_indices, VCFConstants.UNPHASED) ;
             }
         },
 
@@ -130,20 +137,20 @@ public final class BlahVetCreation {
 
         CALL_AD {
             public String getColumnValue(final VariantContext variant) {
-                return Arrays.stream(variant.getGenotype(0).getAD())
+                return variant.getGenotype(0).hasAD() ? Arrays.stream(variant.getGenotype(0).getAD())
                         .mapToObj(String::valueOf)
-                        .collect(Collectors.joining(DELIMITER));
+                        .collect(Collectors.joining(VCFConstants.INFO_FIELD_ARRAY_SEPARATOR)) : "";
             }
         },
 
         CALL_DP {
             public String getColumnValue(final VariantContext variant) {
-                return String.valueOf(variant.getGenotype(0).getDP());
+                return variant.getGenotype(0).hasDP() ? String.valueOf(variant.getGenotype(0).getDP()): "";
             }
         },
 
-        CALL_GQ { // Required
-            public String getColumnValue(final VariantContext variant) throws IOException {
+        CALL_GQ {
+            public String getColumnValue(final VariantContext variant) {
                 if (!variant.getGenotype(0).hasGQ()) {
                     throw new IllegalArgumentException("Cannot be missing required value for call.GQ");
                 }
@@ -155,33 +162,33 @@ public final class BlahVetCreation {
 
         CALL_PGT {
             public String getColumnValue(final VariantContext variant) {
-                return variant.getGenotype(0).hasAnyAttribute("PGT") ? String.valueOf(variant.getGenotype(0).getAnyAttribute("PGT")) : "";
+                return variant.getGenotype(0).hasAnyAttribute(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_GT_KEY)? String.valueOf(variant.getGenotype(0).getAnyAttribute(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_GT_KEY)) : "";
             }
         },
 
         CALL_PID {
             public String getColumnValue(final VariantContext variant) {
-                return variant.getGenotype(0).hasAnyAttribute("PID") ? String.valueOf(variant.getGenotype(0).getAnyAttribute("PID")) : "";
+                return variant.getGenotype(0).hasAnyAttribute(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_ID_KEY) ? String.valueOf(variant.getGenotype(0).getAnyAttribute(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_ID_KEY)) : "";
             }
         },
 
         CALL_PL {
             public String getColumnValue(final VariantContext variant) {
-                return Arrays.stream(variant.getGenotype(0).getPL())
+                return variant.getGenotype(0).hasPL() ? Arrays.stream(variant.getGenotype(0).getPL())
                         .mapToObj(String::valueOf)
-                        .collect(Collectors.joining(DELIMITER));
+                        .collect(Collectors.joining(VCFConstants.INFO_FIELD_ARRAY_SEPARATOR)) : "";
             }
         };
 
         // and the rest of the stuff that I'm not adding rn cuz we just want to test this on genomes
 
-        public String getColumnValue(final VariantContext variant) throws IOException {
+        public String getColumnValue(final VariantContext variant) {
             throw new IllegalArgumentException("Not implemented");
         }
     }
 
 
-    public enum HeaderFieldEnum {
+    public enum ExomeHeaderFieldEnum {
         // TODO is this where the validation step (required vs not) lives  -- fail if there is missing data for a required field
         // and just leave it empty if not required
 
