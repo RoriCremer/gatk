@@ -26,7 +26,6 @@ import java.util.*;
 public final class BlahVariantWalker extends ReferenceWalker {
     static final Logger logger = LogManager.getLogger(BlahVariantWalker.class);
 
-    private final int GQ_CUTOFF = 60;
     private final char SEPARATOR = '\t';
     private SimpleXSVWriter vetWriter = null;
     private SimpleXSVWriter petWriter = null;
@@ -48,8 +47,13 @@ public final class BlahVariantWalker extends ReferenceWalker {
 
     @Argument(fullName = StandardArgumentDefinitions.VARIANT_LONG_NAME,
             shortName = StandardArgumentDefinitions.VARIANT_SHORT_NAME,
-            doc="variants to count overlaps of")
+            doc="Variants to count overlaps of")
     private FeatureInput<VariantContext> variants;
+
+    @Argument(fullName = "gq-dropped-band",
+            shortName = "GQD",
+            doc="GQ band to drop for storage optimization")
+    private Optional<Integer> gqDroppedBand = Optional.empty();
 
     // TODO add arg for exomes vs genomes
 
@@ -104,7 +108,7 @@ public final class BlahVariantWalker extends ReferenceWalker {
                 vetLine.write();
             }
             // create PET output
-            if (variant.getGenotype(0).getGQ() < GQ_CUTOFF) {
+            if (!gqDroppedBand.isPresent() || variant.getGenotype(0).getGQ() < gqDroppedBand.get()) {
                 List<List<String>> TSVLinesToCreatePet;
                 TSVLinesToCreatePet = BlahPetCreation.createPositionRows(variant);
 
@@ -118,8 +122,10 @@ public final class BlahVariantWalker extends ReferenceWalker {
 
     @Override
     public Object onTraversalSuccess(){
-        for (int position : missingPositions){
-            petWriter.getNewLineBuilder().setRow(BlahPetCreation.createMissingTSVRow(position, sampleName)).write();
+        if (gqDroppedBand.isPresent()) {
+            for (int position : missingPositions){
+                petWriter.getNewLineBuilder().setRow(BlahPetCreation.createMissingTSVRow(position, sampleName)).write();
+            }
         }
         return 0;
     }
