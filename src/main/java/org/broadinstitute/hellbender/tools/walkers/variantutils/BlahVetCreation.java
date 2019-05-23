@@ -75,7 +75,7 @@ public final class BlahVetCreation {
             public String getColumnValue(final VariantContext variant) {
                 String out = getAttribute(variant, GATKVCFConstants.AS_RAW_RMS_MAPPING_QUALITY_KEY, null);
                 if (out == null) {
-                    throw new IllegalArgumentException("Cannot be missing required value for alternate_bases.AS_RAW_MQ");
+                 //   throw new IllegalArgumentException("Cannot be missing required value for alternate_bases.AS_RAW_MQ");
                 }
                 return out;
             }
@@ -92,7 +92,7 @@ public final class BlahVetCreation {
                 //TODO find a constant for "AS_QUALapprox"
                 String out = getAttribute(variant, "AS_QUALapprox", null);
                 if (out == null) {
-                    throw new IllegalArgumentException("Cannot be missing required value for alternate_bases.AS_QUALapprox");
+                //    throw new IllegalArgumentException("Cannot be missing required value for alternate_bases.AS_QUALapprox");
                 }
                 return out;
             }

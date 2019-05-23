@@ -91,9 +91,10 @@ public final class BlahVariantWalker extends ReferenceWalker {
                 sampleName = variant.getGenotype(0).getSampleName();
             }
 
-            if (variant.equals(currentVariantContext)) {
+            if (currentVariantContext != null && variant.getStart() == currentVariantContext.getStart() && variant.getEnd() == currentVariantContext.getEnd()) {
                 return;
             }
+
             currentVariantContext = variant;
 
             // create VET output
