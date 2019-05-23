@@ -50,7 +50,7 @@ public final class BlahPetCreation {
             rows.add(row);
 
             //if variant is variant and has additional positions--must be a deletion: add `*` state
-            for (int i = variant.getStart() + 1 ; i < variant.getEnd(); i++){
+            for (int i = variant.getStart() + 1 ; i <= variant.getEnd(); i++){
                 row = new ArrayList<>();
                 row.add(String.valueOf(i));
                 row.add(sampleName);
@@ -75,7 +75,7 @@ public final class BlahPetCreation {
             } else if (genotypeQual < 60) {
                 state = GQStateEnum.FIFTY;
             } else {
-                throw new IllegalArgumentException("GQ is not in the range we expect");
+                state = GQStateEnum.SIXTY;
             }
 
             for (int position = variant.getStart(); position <= variant.getEnd(); position++){ // break up ref blocks

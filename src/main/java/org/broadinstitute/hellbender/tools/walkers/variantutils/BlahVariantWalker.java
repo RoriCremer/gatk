@@ -78,7 +78,11 @@ public final class BlahVariantWalker extends ReferenceWalker {
     @Override
     public void apply(final ReferenceContext referenceContext, final ReadsContext readsContext, final FeatureContext featureContext) {
         if(featureContext.getValues(variants).isEmpty()){
-            missingPositions.add(referenceContext.getInterval().getStart());
+            if (sampleName == null){
+                missingPositions.add(referenceContext.getInterval().getStart());
+            } else {
+                petWriter.getNewLineBuilder().setRow(BlahPetCreation.createMissingTSVRow(referenceContext.getInterval().getStart(), sampleName)).write();
+            }
         }
         else {
             VariantContext variant = featureContext.getValues(variants).get(0);
@@ -102,7 +106,7 @@ public final class BlahVariantWalker extends ReferenceWalker {
                 vetLine.write();
             }
             // create PET output
-            if (variant.getGenotype(0).getGQ() < GQ_CUTOFF) {
+            if (variant.getGenotype(0).getGQ() < 100) {
                 List<List<String>> TSVLinesToCreatePet;
                 TSVLinesToCreatePet = BlahPetCreation.createPositionRows(variant);
 

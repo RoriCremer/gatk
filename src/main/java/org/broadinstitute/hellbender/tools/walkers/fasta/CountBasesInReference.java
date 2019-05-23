@@ -26,12 +26,14 @@ public class CountBasesInReference extends ReferenceWalker {
 
     @Override
     public Object onTraversalSuccess(){
+        long total = 0;
         for (int i = 0; i < baseCounts.length; i++) {
             final long count = baseCounts[i];
             if (count > 0){
-                System.out.println((char)i + " : " + count );
+                total += count;
             }
         }
+        logger.info("COUNT: " + total);
         return 0;
     }
 }
