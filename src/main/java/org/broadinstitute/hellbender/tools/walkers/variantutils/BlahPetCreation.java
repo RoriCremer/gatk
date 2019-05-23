@@ -37,20 +37,20 @@ public final class BlahPetCreation {
 
     }
 
-    public static List<List<String>> createPositionRows(final VariantContext variant) {
+    public static List<List<String>> createPositionRows(final int start, final VariantContext variant, final int end) {
 
         List<List<String>> rows = new ArrayList<>();
         String sampleName = variant.getSampleNamesOrderedByName().get(0);
 
         if (!variant.isReferenceBlock()) {
             List<String> row = new ArrayList<>();
-            row.add(String.valueOf(variant.getStart()));
+            row.add(String.valueOf(start));
             row.add(sampleName);
             row.add(GQStateEnum.VARIANT.value);
             rows.add(row);
 
             //if variant is variant and has additional positions--must be a deletion: add `*` state
-            for (int i = variant.getStart() + 1 ; i <= variant.getEnd(); i++){
+            for (int i = start + 1 ; i <= end; i++){
                 row = new ArrayList<>();
                 row.add(String.valueOf(i));
                 row.add(sampleName);
@@ -78,14 +78,10 @@ public final class BlahPetCreation {
                 state = GQStateEnum.SIXTY;
             }
 
-            for (int position = variant.getStart(); position <= variant.getEnd(); position++){ // break up ref blocks
+            for (int position = start; position <= end; position++){ // break up ref blocks
                 List<String> row = new ArrayList<>();
 
-                if (position == 32437537) {
-                    row.add(String.valueOf(position));
-                } else {
-                    row.add(String.valueOf(position));
-                }
+                row.add(String.valueOf(position));
                 row.add(sampleName);
                 row.add(state.value);
                 rows.add(row);

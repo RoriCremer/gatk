@@ -1,5 +1,6 @@
 package org.broadinstitute.hellbender.tools.walkers.variantutils;
 
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.variantcontext.VariantContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -8,6 +9,10 @@ import org.broadinstitute.barclay.argparser.CommandLineProgramProperties;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.ExampleProgramGroup;
 import org.broadinstitute.hellbender.engine.*;
+import org.broadinstitute.hellbender.utils.GenomeLoc;
+import org.broadinstitute.hellbender.utils.GenomeLocParser;
+import org.broadinstitute.hellbender.utils.GenomeLocSortedSet;
+import org.broadinstitute.hellbender.utils.IntervalUtils;
 import org.broadinstitute.hellbender.utils.tsv.SimpleXSVWriter;
 
 import java.io.IOException;
@@ -34,6 +39,7 @@ public final class BlahVariantWalker extends ReferenceWalker {
     private String sampleName = null;
     private Set<Integer> missingPositions = null;
     private VariantContext currentVariantContext = null;
+    private GenomeLocSortedSet intervalArgumentGenomeLocSortedSet;
 
 
     @Argument(fullName = "vet-table-out-path",
@@ -56,6 +62,13 @@ public final class BlahVariantWalker extends ReferenceWalker {
     public void onTraversalStart() {
 
         missingPositions = new HashSet<>();
+
+        final SAMSequenceDictionary seqDictionary = getBestAvailableSequenceDictionary();
+
+        final GenomeLocSortedSet genomeLocSortedSet = new GenomeLocSortedSet(new GenomeLocParser(seqDictionary));
+        if (intervalArgumentCollection.intervalsSpecified()) {
+            intervalArgumentGenomeLocSortedSet = GenomeLocSortedSet.createSetFromList(genomeLocSortedSet.getGenomeLocParser(), IntervalUtils.genomeLocsFromLocatables(genomeLocSortedSet.getGenomeLocParser(), intervalArgumentCollection.getIntervals(seqDictionary)));
+        }
 
         try {
             List<String> vetHeader = BlahVetCreation.getHeaders();
@@ -85,18 +98,26 @@ public final class BlahVariantWalker extends ReferenceWalker {
             }
         }
         else {
+            if (featureContext.getValues(variants).size() > 1){
+                logger.info("more than 1 variant here: " + referenceContext.getInterval().toString());
+            }
             VariantContext variant = featureContext.getValues(variants).get(0);
 
             if (sampleName == null) {
                 sampleName = variant.getGenotype(0).getSampleName();
             }
 
-            if (currentVariantContext != null && variant.getStart() == currentVariantContext.getStart() && variant.getEnd() == currentVariantContext.getEnd()) {
+            if (currentVariantContext != null && variant.getStart() == currentVariantContext.getStart()
+                    && variant.getEnd() == currentVariantContext.getEnd()
+                    && variant.getContig().equals(currentVariantContext.getContig())) {
                 return;
             }
 
             currentVariantContext = variant;
 
+            final GenomeLoc variantGenomeLoc = intervalArgumentGenomeLocSortedSet.getGenomeLocParser().createGenomeLoc(variant.getContig(), variant.getStart(), variant.getEnd());
+
+            final List<GenomeLoc> intervalsToWrite = intervalArgumentGenomeLocSortedSet.getOverlapping(variantGenomeLoc);
             // create VET output
             if (!variant.isReferenceBlock()) {
                 final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(variant);
@@ -109,11 +130,15 @@ public final class BlahVariantWalker extends ReferenceWalker {
             // create PET output
             if (variant.getGenotype(0).getGQ() < 100) {
                 List<List<String>> TSVLinesToCreatePet;
-                TSVLinesToCreatePet = BlahPetCreation.createPositionRows(variant);
+                for (GenomeLoc genomeLoc : intervalsToWrite) {
+                    int start = Math.max(genomeLoc.getStart(), variant.getStart());
+                    int end = Math.min(genomeLoc.getEnd(), variant.getEnd());
+                    TSVLinesToCreatePet = BlahPetCreation.createPositionRows(start, variant, end);
 
-                // write the position to the XSV
-                for (List<String> TSVLineToCreatePet : TSVLinesToCreatePet) {
-                    petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
+                    // write the position to the XSV
+                    for (List<String> TSVLineToCreatePet : TSVLinesToCreatePet) {
+                        petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
+                    }
                 }
             }
         }
