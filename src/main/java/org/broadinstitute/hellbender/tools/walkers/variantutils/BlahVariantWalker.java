@@ -166,8 +166,8 @@ public final class BlahVariantWalker extends VariantWalker {
     @Override
     public Object onTraversalSuccess() {
         final GenomeLocSortedSet uncoveredIntervals = intervalArgumentGenomeLocSortedSet.subtractRegions(coverageLocSortedSet);
-        logger.info(uncoveredIntervals.coveredSize());
-        logger.info((1.0 * uncoveredIntervals.coveredSize()) / intervalArgumentGenomeLocSortedSet.coveredSize() );
+        logger.info("MISSING_GREP_HERE:" + uncoveredIntervals.coveredSize());
+        logger.info("MISSING_PERCENTAGE_GREP_HERE:" + (1.0 * uncoveredIntervals.coveredSize()) / intervalArgumentGenomeLocSortedSet.coveredSize());
         for (GenomeLoc genomeLoc : uncoveredIntervals) {
             // write the position to the XSV
             for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(genomeLoc.getStart(), genomeLoc.getEnd(),sampleName)) {

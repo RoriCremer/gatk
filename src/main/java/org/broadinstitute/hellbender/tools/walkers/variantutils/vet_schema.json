@@ -1,0 +1,104 @@
+[
+ {
+   "description": "[DESCRIPTION]",
+   "name": "POSITION",
+   "type": "Integer",
+   "mode": "Required"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "REF",
+   "type": "String",
+   "mode": "Required"
+ },
+  {
+   "description": "[DESCRIPTION]",
+   "name": "ALT",
+   "type": "String",
+   "mode": "Required"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "AS_RAW_MQ",
+   "type": "String",
+   "mode": "Required"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "AS_RAW_MQRANKSUM",
+   "type": "String",
+   "mode": "Nullable"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "AS_QUALAPPROX",
+   "type": "String",
+   "mode": "Required"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "AS_RAW_READPOSRANKSUM",
+   "type": "String",
+   "mode": "Nullable"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "AS_SB_TABLE",
+   "type": "String",
+   "mode": "Required"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "AS_VARDP",
+   "type": "String",
+   "mode": "Required"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "SAMPLE",
+   "type": "String",
+   "mode": "Required"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "GT",
+   "type": "String",
+   "mode": "Required"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "AD",
+   "type": "String",
+   "mode": "Nullable"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "DP",
+   "type": "Integer",
+   "mode": "Nullable"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "GQ",
+   "type": "Integer",
+   "mode": "Required"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "PGT",
+   "type": "String",
+   "mode": "Nullable"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "PID",
+   "type": "String",
+   "mode": "Nullable"
+ },
+ {
+   "description": "[DESCRIPTION]",
+   "name": "PL",
+   "type": "String",
+   "mode": "Required"
+ }
+]
