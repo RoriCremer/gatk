@@ -77,7 +77,7 @@ public final class BlahVariantWalker extends VariantWalker {
             vetWriter.setHeaderLine(vetHeader);
 
         } catch (final IOException e) {
-            throw new IllegalArgumentException("Current variant is missing required fields", e);
+            throw new IllegalArgumentException("Could not create vet output", e);
         }
         try {
             List<String> petHeader = BlahPetCreation.getHeaders();
@@ -85,7 +85,7 @@ public final class BlahVariantWalker extends VariantWalker {
             petWriter.setHeaderLine(petHeader);
 
         } catch (final IOException e) {
-            throw new IllegalArgumentException("Current variant is missing required fields", e);
+            throw new IllegalArgumentException("Could not create pet output", e);
         }
     }
 
@@ -170,7 +170,7 @@ public final class BlahVariantWalker extends VariantWalker {
         logger.info("MISSING_PERCENTAGE_GREP_HERE:" + (1.0 * uncoveredIntervals.coveredSize()) / intervalArgumentGenomeLocSortedSet.coveredSize());
         for (GenomeLoc genomeLoc : uncoveredIntervals) {
             // write the position to the XSV
-            for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(genomeLoc.getStart(), genomeLoc.getEnd(),sampleName)) {
+            for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(genomeLoc.getStart(), genomeLoc.getEnd(), sampleName)) {
                 petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
             }
         }
