@@ -1,19 +1,19 @@
 [
  {
    "description": "[DESCRIPTION]",
-   "name": "POSITION",
+   "name": "position",
    "type": "Integer",
    "mode": "Required"
  },
  {
    "description": "[DESCRIPTION]",
-   "name": "SAMPLE",
+   "name": "sample",
    "type": "String",
    "mode": "Required"
  },
   {
    "description": "[DESCRIPTION]",
-   "name": "STATE",
+   "name": "state",
    "type": "String",
    "mode": "Required"
  }

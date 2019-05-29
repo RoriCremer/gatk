@@ -73,7 +73,7 @@
  },
  {
    "description": "[DESCRIPTION]",
-   "name": "CALL_DP",
+   "name": "call_DP",
    "type": "Integer",
    "mode": "Nullable"
  },
@@ -85,7 +85,7 @@
  },
  {
    "description": "[DESCRIPTION]",
-   "name": "CALL_PGT",
+   "name": "call_PGT",
    "type": "String",
    "mode": "Nullable"
  },
