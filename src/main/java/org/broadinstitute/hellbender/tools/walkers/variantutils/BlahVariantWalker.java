@@ -48,17 +48,18 @@ public final class BlahVariantWalker extends VariantWalker {
 
     @Argument(fullName = "vet-out-path",
             shortName = "VO",
-            doc="Path to where the variants TSV should be written")
+            doc = "Path to where the variants TSV should be written")
     public GATKPathSpecifier vetOutput = null;
 
     @Argument(fullName = "pet-out-path",
             shortName = "PO",
-            doc="Path to where the positions expanded TSV should be written")
+            doc = "Path to where the positions expanded TSV should be written")
     public GATKPathSpecifier petOutput = null;
 
     @Argument(fullName = "ref-block-gq-to-ignore",
             shortName = "IG",
-            doc="Ref Bock GQ band to ignore, bands of 10 e.g 0-9 get combined to 0, 20-29 get combined to 20")
+            doc = "Ref Bock GQ band to ignore, bands of 10 e.g 0-9 get combined to 0, 20-29 get combined to 20",
+            optional = true)
     public BlahPetCreation.GQStateEnum gqStateToIgnore = null;
 
     @Override
