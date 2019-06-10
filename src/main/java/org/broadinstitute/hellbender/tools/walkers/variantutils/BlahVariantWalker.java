@@ -3,6 +3,7 @@ package org.broadinstitute.hellbender.tools.walkers.variantutils;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.broadinstitute.barclay.argparser.Argument;
@@ -15,6 +16,8 @@ import org.broadinstitute.hellbender.engine.ReferenceContext;
 import org.broadinstitute.hellbender.engine.VariantWalker;
 import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.utils.*;
+import org.broadinstitute.hellbender.utils.genotyper.IndexedSampleList;
+import org.broadinstitute.hellbender.utils.genotyper.SampleList;
 import org.broadinstitute.hellbender.utils.tsv.SimpleXSVWriter;
 
 import java.io.IOException;
@@ -43,17 +46,20 @@ public final class BlahVariantWalker extends VariantWalker {
     private String sampleName;
 
 
-    @Argument(fullName = "vet-table-out-path",
+    @Argument(fullName = "vet-out-path",
             shortName = "VO",
-            doc="Path to where the variants table should be written")
+            doc = "Path to where the variants TSV should be written")
     public GATKPathSpecifier vetOutput = null;
 
-
-    @Argument(fullName = "pet-table-out-path",
+    @Argument(fullName = "pet-out-path",
             shortName = "PO",
-            doc="Path to where the positions expanded table should be written")
+            doc = "Path to where the positions expanded TSV should be written")
     public GATKPathSpecifier petOutput = null;
 
+    @Argument(fullName = "ref-block-gq-to-ignore",
+            shortName = "IG",
+            doc = "Ref Bock GQ band to ignore, bands of 10 e.g 0-9 get combined to 0, 20-29 get combined to 20",
+            optional = true)
     public BlahPetCreation.GQStateEnum gqStateToIgnore = null;
 
     @Override
@@ -63,6 +69,13 @@ public final class BlahVariantWalker extends VariantWalker {
 
     @Override
     public void onTraversalStart() {
+
+        final VCFHeader inputVCFHeader = getHeaderForVariants();
+        final SampleList samples = new IndexedSampleList(inputVCFHeader.getGenotypeSamples());
+        if (samples.numberOfSamples() > 1){
+            throw new UserException("This tool can only be run on single sample vcfs");
+        }
+        sampleName = samples.getSample(0);
 
         final SAMSequenceDictionary seqDictionary = getBestAvailableSequenceDictionary();
 
@@ -76,30 +89,28 @@ public final class BlahVariantWalker extends VariantWalker {
             vetWriter.setHeaderLine(vetHeader);
 
         } catch (final IOException e) {
-            throw new IllegalArgumentException("Current variant is missing required fields", e);
+            throw new UserException("Could not create vet output", e);
         }
+
         try {
             List<String> petHeader = BlahPetCreation.getHeaders();
             petWriter = new SimpleXSVWriter(petOutput.toPath(), SEPARATOR);
             petWriter.setHeaderLine(petHeader);
 
         } catch (final IOException e) {
-            throw new IllegalArgumentException("Current variant is missing required fields", e);
+            throw new UserException("Could not create pet output", e);
         }
     }
 
     @Override
     public void apply(final VariantContext variant, final ReadsContext readsContext, final ReferenceContext referenceContext, final FeatureContext featureContext) {
-        if (sampleName == null) {
-            sampleName = variant.getGenotype(0).getSampleName();
-        }
 
         // get the intervals this variant covers
         final GenomeLoc variantGenomeLoc = intervalArgumentGenomeLocSortedSet.getGenomeLocParser().createGenomeLoc(variant.getContig(), variant.getStart(), variant.getEnd());
         final List<GenomeLoc> intervalsToWrite = intervalArgumentGenomeLocSortedSet.getOverlapping(variantGenomeLoc);
 
         if (intervalsToWrite.size() == 0){
-            throw new IllegalStateException("There are no intervals being covered by this variant");
+            throw new IllegalStateException("There are no intervals being covered by this variant, something went wrong with interval parsing");
         }
 
         // take the first interval(assuming this is returned in order) and make sure if its a variant, that it starts at/after the interval start
@@ -169,7 +180,7 @@ public final class BlahVariantWalker extends VariantWalker {
         logger.info("MISSING_PERCENTAGE_GREP_HERE:" + (1.0 * uncoveredIntervals.coveredSize()) / intervalArgumentGenomeLocSortedSet.coveredSize());
         for (GenomeLoc genomeLoc : uncoveredIntervals) {
             // write the position to the XSV
-            for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(genomeLoc.getStart(), genomeLoc.getEnd(),sampleName)) {
+            for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(genomeLoc.getStart(), genomeLoc.getEnd(), sampleName)) {
                 petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
             }
         }
