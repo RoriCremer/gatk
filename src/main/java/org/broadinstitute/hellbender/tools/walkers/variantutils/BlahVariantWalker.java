@@ -33,7 +33,6 @@ import java.util.*;
 public final class BlahVariantWalker extends VariantWalker {
     static final Logger logger = LogManager.getLogger(BlahVariantWalker.class);
 
-    private final int GQ_CUTOFF = 10000;
     private final char SEPARATOR = '\t';
     private SimpleXSVWriter vetWriter = null;
     private SimpleXSVWriter petWriter = null;
@@ -46,13 +45,13 @@ public final class BlahVariantWalker extends VariantWalker {
 
     @Argument(fullName = "vet-table-out-path",
             shortName = "VO",
-            doc="Path to where the variants expanded table should be written")
+            doc="Path to where the variants table should be written")
     public GATKPathSpecifier vetOutput = null;
 
 
     @Argument(fullName = "pet-table-out-path",
             shortName = "PO",
-            doc="Path to where the positions table should be written")
+            doc="Path to where the positions expanded table should be written")
     public GATKPathSpecifier petOutput = null;
 
     public BlahPetCreation.GQStateEnum gqStateToIgnore = null;
