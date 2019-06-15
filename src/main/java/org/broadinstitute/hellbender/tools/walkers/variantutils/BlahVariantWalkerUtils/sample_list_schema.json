@@ -7,7 +7,7 @@
   },
   {
     "description": "[DESCRIPTION]",
-    "name": "interval_list",
+    "name": "interval_list_blob",
     "type": "String",
     "mode": "Required"
   },
