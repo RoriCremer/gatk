@@ -2,12 +2,11 @@ package org.broadinstitute.hellbender.tools.walkers.variantutils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFEncoder;
 import org.apache.commons.lang.StringUtils;
+import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
 import org.broadinstitute.hellbender.utils.variant.GATKVariantContextUtils;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -54,7 +53,7 @@ public final class BlahVetCreation {
             public String getColumnValue(final VariantContext variant) {
                 final String referenceBase = variant.getReference().getBaseString();
                 if (referenceBase == null) {
-                    throw new IllegalArgumentException("Cannot be missing required value for reference_bases");
+                    throw new IllegalArgumentException("Cannot be missing required value for reference_bases"); // TODO, should this be UserException too?
                 }
                 return referenceBase;
             }
@@ -75,7 +74,7 @@ public final class BlahVetCreation {
             public String getColumnValue(final VariantContext variant) {
                 String out = getAttribute(variant, GATKVCFConstants.AS_RAW_RMS_MAPPING_QUALITY_KEY, null);
                 if (out == null) {
-                    throw new IllegalArgumentException("Cannot be missing required value for alternate_bases.AS_RAW_MQ");
+                    throw new UserException("Cannot be missing required value for alternate_bases.AS_RAW_MQ");
                 }
                 return out;
             }
@@ -92,7 +91,7 @@ public final class BlahVetCreation {
                 //TODO find a constant for "AS_QUALapprox"
                 String out = getAttribute(variant, "AS_QUALapprox", null);
                 if (out == null) {
-                    throw new IllegalArgumentException("Cannot be missing required value for alternate_bases.AS_QUALapprox");
+                    throw new UserException("Cannot be missing required value for alternate_bases.AS_QUALapprox");
                 }
                 return out;
             }
@@ -108,7 +107,7 @@ public final class BlahVetCreation {
             public String getColumnValue(final VariantContext variant) {
                 String out = getAttribute(variant, GATKVCFConstants.AS_SB_TABLE_KEY, null);
                 if (out == null) {
-                    throw new IllegalArgumentException("Cannot be missing required value for alternate_bases.AS_SB_TABLE");
+                    throw new UserException("Cannot be missing required value for alternate_bases.AS_SB_TABLE");
                 }
                 return out;
             }
@@ -119,7 +118,7 @@ public final class BlahVetCreation {
                 //TODO find a constant for "AS_VarDP"
                 String out = getAttribute(variant, "AS_VarDP", null);
                 if (out == null) {
-                    throw new IllegalArgumentException("Cannot be missing required value for alternate_bases.AS_VarDP");
+                    throw new UserException("Cannot be missing required value for alternate_bases.AS_VarDP");
                 }
                 return out;
             }
@@ -162,7 +161,7 @@ public final class BlahVetCreation {
         call_GQ { // Required
             public String getColumnValue(final VariantContext variant) {
                 if (!variant.getGenotype(0).hasGQ()) {
-                    throw new IllegalArgumentException("Cannot be missing required value for call.GQ");
+                    throw new UserException("Cannot be missing required value for call.GQ");
                 }
                 return  String.valueOf(variant.getGenotype(0).getGQ());
             }
@@ -202,7 +201,7 @@ public final class BlahVetCreation {
     }
 
 
-    public static List<String> createVariantRow(final VariantContext variant) {
+    public static List<String> createVariantRow(final VariantContext variant) { // TODO  throws UserException ?
         List<String> row = new ArrayList<>();
 
         for ( final HeaderFieldEnum fieldEnum : HeaderFieldEnum.values() ) {
