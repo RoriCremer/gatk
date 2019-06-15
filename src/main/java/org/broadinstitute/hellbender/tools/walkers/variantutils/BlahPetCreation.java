@@ -37,10 +37,9 @@ public final class BlahPetCreation {
 
     }
 
-    public static List<List<String>> createPositionRows(final int start, final VariantContext variant, final int end) {
+    public static List<List<String>> createPositionRows(final int start, final int end, final VariantContext variant, final String sampleName) {
 
         List<List<String>> rows = new ArrayList<>();
-        String sampleName = variant.getSampleNamesOrderedByName().get(0);
 
         if (!variant.isReferenceBlock()) {
             List<String> row = new ArrayList<>();
@@ -74,13 +73,12 @@ public final class BlahPetCreation {
         return rows;
     }
 
-    public static List<List<String>> createSpanDelRows(final int start, final VariantContext variant, final int end) {
+    public static List<List<String>> createSpanDelRows(final int start, final int end, final VariantContext variant, final String sampleName) {
         if (variant.isReferenceBlock()){
             throw new IllegalStateException("Cannot create span deletion rows for a reference block");
         }
 
         List<List<String>> rows = new ArrayList<>();
-        String sampleName = variant.getSampleNamesOrderedByName().get(0);
 
         for (int position = start; position <= end; position++){ // break up ref blocks
             List<String> row = new ArrayList<>();
