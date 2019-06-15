@@ -21,6 +21,7 @@ import org.broadinstitute.hellbender.utils.genotyper.SampleList;
 import org.broadinstitute.hellbender.utils.tsv.SimpleXSVWriter;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.*;
 
 /**
@@ -39,6 +40,7 @@ public final class BlahVariantWalker extends VariantWalker {
     private final char SEPARATOR = '\t';
     private SimpleXSVWriter vetWriter = null;
     private SimpleXSVWriter petWriter = null;
+    private SimpleXSVWriter sampleMetadataWriter = null;
 
     private GenomeLocSortedSet intervalArgumentGenomeLocSortedSet;
     private GenomeLocSortedSet coverageLocSortedSet;
@@ -56,9 +58,20 @@ public final class BlahVariantWalker extends VariantWalker {
             doc = "Path to where the positions expanded TSV should be written")
     public GATKPathSpecifier petOutput = null;
 
+    @Argument(fullName = "sample-metadata-out-path",
+            shortName = "SMO",
+            doc = "Path to where the sample metadata TSV should be written")
+    public GATKPathSpecifier sampleMetadataOutput = null;
+
+    @Argument(fullName = "interval-list-used", // TODO should this use INTERVALS_LONG_NAME?
+            shortName = "IL",
+            doc = "Path to the interval list used",
+            optional = true)
+    public GATKPathSpecifier intervalListPath = null;
+
     @Argument(fullName = "ref-block-gq-to-ignore",
             shortName = "IG",
-            doc = "Ref Bock GQ band to ignore, bands of 10 e.g 0-9 get combined to 0, 20-29 get combined to 20",
+            doc = "Ref Block GQ band to ignore, bands of 10 e.g 0-9 get combined to 0, 20-29 get combined to 20",
             optional = true)
     public BlahPetCreation.GQStateEnum gqStateToIgnore = null;
 
@@ -100,6 +113,21 @@ public final class BlahVariantWalker extends VariantWalker {
         } catch (final IOException e) {
             throw new UserException("Could not create pet output", e);
         }
+
+        try {
+            String intervalListBlob = new String(Files.readAllBytes(intervalListPath.toPath()));
+            List<String> sampleListHeader = BlahSampleListCreation.getHeaders();
+            sampleMetadataWriter = new SimpleXSVWriter(sampleMetadataOutput.toPath(), SEPARATOR);
+            sampleMetadataWriter.setHeaderLine(sampleListHeader);
+            final List<String> TSVLineToCreateSampleMetadata = BlahSampleListCreation.createSampleListRow(
+                    sampleName,
+                    intervalListBlob,
+                    gqStateToIgnore);
+            sampleMetadataWriter.getNewLineBuilder().setRow(TSVLineToCreateSampleMetadata).write();
+
+        } catch (final IOException e) {
+            throw new UserException("Could not create sample metadata output", e);
+        }
     }
 
     @Override
@@ -138,6 +166,7 @@ public final class BlahVariantWalker extends VariantWalker {
 
             int start = Math.max(genomeLoc.getStart(), variant.getStart());
             int end = Math.min(genomeLoc.getEnd(), variant.getEnd());
+            // TODO throw an error if start and end are the same?
 
             // create PET output if the reference block's GQ is not the one to throw away or its a variant
             if (!variant.isReferenceBlock() || !BlahPetCreation.getGQStateEnum(variant.getGenotype(0).getGQ()).equals(gqStateToIgnore)) {
@@ -159,9 +188,9 @@ public final class BlahVariantWalker extends VariantWalker {
                 List<List<String>> TSVLinesToCreatePet;
                 // handle deletions that span across multiple intervals
                 if (!firstInterval && !variant.isReferenceBlock()) {
-                    TSVLinesToCreatePet = BlahPetCreation.createSpanDelRows(start, variant, end);
+                    TSVLinesToCreatePet = BlahPetCreation.createSpanDelRows(start, end, variant, sampleName);
                 } else {
-                    TSVLinesToCreatePet = BlahPetCreation.createPositionRows(start, variant, end);
+                    TSVLinesToCreatePet = BlahPetCreation.createPositionRows(start, end, variant, sampleName);
                 }
 
                 // write the position to the XSV
@@ -201,6 +230,13 @@ public final class BlahVariantWalker extends VariantWalker {
                 petWriter.close();
             } catch (final Exception e) {
                 throw new IllegalArgumentException("Couldn't close PET writer", e);
+            }
+        }
+        if (sampleMetadataWriter != null) {
+            try {
+                sampleMetadataWriter.close();
+            } catch (final Exception e) {
+                throw new IllegalArgumentException("Couldn't close Sample List writer", e);
             }
         }
     }
