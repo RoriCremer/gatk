@@ -4,6 +4,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.broadinstitute.barclay.argparser.Argument;
@@ -21,8 +22,8 @@ import org.broadinstitute.hellbender.utils.genotyper.SampleList;
 import org.broadinstitute.hellbender.utils.tsv.SimpleXSVWriter;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Example/toy program that shows how to implement the VariantWalker interface. Prints supplied variants
@@ -46,7 +47,7 @@ public final class BlahVariantWalker extends VariantWalker {
     private GenomeLocSortedSet coverageLocSortedSet;
     private SimpleInterval previousInterval;
     private String sampleName;
-
+    private List<SimpleInterval> userIntervals;
 
     @Argument(fullName = "vet-out-path",
             shortName = "VO",
@@ -62,12 +63,6 @@ public final class BlahVariantWalker extends VariantWalker {
             shortName = "SMO",
             doc = "Path to where the sample metadata TSV should be written")
     public GATKPathSpecifier sampleMetadataOutput = null;
-
-    @Argument(fullName = "interval-list-used", // TODO should this use INTERVALS_LONG_NAME?
-            shortName = "IL",
-            doc = "Path to the interval list used",
-            optional = true)
-    public GATKPathSpecifier intervalListPath = null;
 
     @Argument(fullName = "ref-block-gq-to-ignore",
             shortName = "IG",
@@ -92,6 +87,8 @@ public final class BlahVariantWalker extends VariantWalker {
 
         final SAMSequenceDictionary seqDictionary = getBestAvailableSequenceDictionary();
 
+        userIntervals = intervalArgumentCollection.getIntervals(seqDictionary);
+
         final GenomeLocSortedSet genomeLocSortedSet = new GenomeLocSortedSet(new GenomeLocParser(seqDictionary));
         intervalArgumentGenomeLocSortedSet = GenomeLocSortedSet.createSetFromList(genomeLocSortedSet.getGenomeLocParser(), IntervalUtils.genomeLocsFromLocatables(genomeLocSortedSet.getGenomeLocParser(), intervalArgumentCollection.getIntervals(seqDictionary)));
         coverageLocSortedSet = new GenomeLocSortedSet(new GenomeLocParser(seqDictionary));
@@ -115,7 +112,9 @@ public final class BlahVariantWalker extends VariantWalker {
         }
 
         try {
-            String intervalListBlob = new String(Files.readAllBytes(intervalListPath.toPath()));
+            List<String> intervalList = userIntervals.stream().map(interval -> interval.toString())
+                    .collect(Collectors.toList());
+            String intervalListBlob = StringUtils.join(intervalList, ", ");
             List<String> sampleListHeader = BlahSampleListCreation.getHeaders();
             sampleMetadataWriter = new SimpleXSVWriter(sampleMetadataOutput.toPath(), SEPARATOR);
             sampleMetadataWriter.setHeaderLine(sampleListHeader);
