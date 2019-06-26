@@ -68,7 +68,7 @@ public final class BlahVariantWalker extends VariantWalker {
             shortName = "IG",
             doc = "Ref Block GQ band to ignore, bands of 10 e.g 0-9 get combined to 0, 20-29 get combined to 20",
             optional = true)
-    public BlahPetCreation.GQStateEnum gqStateToIgnore = null;
+    public String gqStateToIgnore = null;
 
     @Override
     public boolean requiresIntervals() {
@@ -121,7 +121,7 @@ public final class BlahVariantWalker extends VariantWalker {
             final List<String> TSVLineToCreateSampleMetadata = BlahSampleListCreation.createSampleListRow(
                     sampleName,
                     intervalListBlob,
-                    gqStateToIgnore);
+                    BlahPetCreation.GQStateEnum.valueOf(gqStateToIgnore));
             sampleMetadataWriter.getNewLineBuilder().setRow(TSVLineToCreateSampleMetadata).write();
 
         } catch (final IOException e) {
@@ -168,7 +168,7 @@ public final class BlahVariantWalker extends VariantWalker {
             // TODO throw an error if start and end are the same?
 
             // create PET output if the reference block's GQ is not the one to throw away or its a variant
-            if (!variant.isReferenceBlock() || !BlahPetCreation.getGQStateEnum(variant.getGenotype(0).getGQ()).equals(gqStateToIgnore)) {
+            if (!variant.isReferenceBlock() || !BlahPetCreation.getGQStateEnum(variant.getGenotype(0).getGQ()).equals(BlahPetCreation.GQStateEnum.valueOf(gqStateToIgnore))) {
 
                 // add interval to "covered" intervals
                 // GenomeLocSortedSet will automatically merge intervals that are overlapping when setting `mergeIfIntervalOverlaps`
