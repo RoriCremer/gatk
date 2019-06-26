@@ -115,12 +115,13 @@ public final class BlahVariantWalker extends VariantWalker {
             List<String> intervalList = userIntervals.stream().map(interval -> interval.toString())
                     .collect(Collectors.toList());
             String intervalListBlob = StringUtils.join(intervalList, ", ");
+            String intervalListMd5 = Utils.calcMD5(intervalListBlob);
             List<String> sampleListHeader = BlahSampleListCreation.getHeaders();
             sampleMetadataWriter = new SimpleXSVWriter(sampleMetadataOutput.toPath(), SEPARATOR);
             sampleMetadataWriter.setHeaderLine(sampleListHeader);
             final List<String> TSVLineToCreateSampleMetadata = BlahSampleListCreation.createSampleListRow(
                     sampleName,
-                    intervalListBlob,
+                    intervalListMd5,
                     BlahPetCreation.GQStateEnum.valueOf(gqStateToIgnore));
             sampleMetadataWriter.getNewLineBuilder().setRow(TSVLineToCreateSampleMetadata).write();
 
