@@ -24,6 +24,7 @@ import org.broadinstitute.hellbender.utils.tsv.SimpleXSVWriter;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.nio.file.Path;
 
 /**
  * Example/toy program that shows how to implement the VariantWalker interface. Prints supplied variants
@@ -39,24 +40,27 @@ public final class BlahVariantWalker extends VariantWalker {
     static final Logger logger = LogManager.getLogger(BlahVariantWalker.class);
 
     private final char SEPARATOR = '\t';
-    private SimpleXSVWriter vetWriter = null;
-    private SimpleXSVWriter petWriter = null;
+    private final String FILETYPE = ".tsv";
+    private HashMap<String, SimpleXSVWriter> vetWriterCollection = new HashMap<>(23);
+    private HashMap<String, SimpleXSVWriter> petWriterCollection = new HashMap<>(23);
     private SimpleXSVWriter sampleMetadataWriter = null;
 
     private GenomeLocSortedSet intervalArgumentGenomeLocSortedSet;
     private GenomeLocSortedSet coverageLocSortedSet;
     private SimpleInterval previousInterval;
     private String sampleName;
+    private String currentContig;
     private List<SimpleInterval> userIntervals;
+
 
     @Argument(fullName = "vet-out-path",
             shortName = "VO",
-            doc = "Path to where the variants TSV should be written")
+            doc = "Path to the directory where the variants TSVs should be written")
     public GATKPathSpecifier vetOutput = null;
 
     @Argument(fullName = "pet-out-path",
             shortName = "PO",
-            doc = "Path to where the positions expanded TSV should be written")
+            doc = "Path to the directory where the positions expanded TSVs should be written")
     public GATKPathSpecifier petOutput = null;
 
     @Argument(fullName = "sample-metadata-out-path",
@@ -68,7 +72,7 @@ public final class BlahVariantWalker extends VariantWalker {
             shortName = "IG",
             doc = "Ref Block GQ band to ignore, bands of 10 e.g 0-9 get combined to 0, 20-29 get combined to 20",
             optional = true)
-    public String gqStateToIgnore = null;
+    public String gqStateToIgnore = "MISSING";
 
     @Override
     public boolean requiresIntervals() {
@@ -92,24 +96,6 @@ public final class BlahVariantWalker extends VariantWalker {
         final GenomeLocSortedSet genomeLocSortedSet = new GenomeLocSortedSet(new GenomeLocParser(seqDictionary));
         intervalArgumentGenomeLocSortedSet = GenomeLocSortedSet.createSetFromList(genomeLocSortedSet.getGenomeLocParser(), IntervalUtils.genomeLocsFromLocatables(genomeLocSortedSet.getGenomeLocParser(), intervalArgumentCollection.getIntervals(seqDictionary)));
         coverageLocSortedSet = new GenomeLocSortedSet(new GenomeLocParser(seqDictionary));
-
-        try {
-            List<String> vetHeader = BlahVetCreation.getHeaders();
-            vetWriter = new SimpleXSVWriter(vetOutput.toPath(), SEPARATOR);
-            vetWriter.setHeaderLine(vetHeader);
-
-        } catch (final IOException e) {
-            throw new UserException("Could not create vet output", e);
-        }
-
-        try {
-            List<String> petHeader = BlahPetCreation.getHeaders();
-            petWriter = new SimpleXSVWriter(petOutput.toPath(), SEPARATOR);
-            petWriter.setHeaderLine(petHeader);
-
-        } catch (final IOException e) {
-            throw new UserException("Could not create pet output", e);
-        }
 
         try {
             List<String> intervalList = userIntervals.stream().map(interval -> interval.toString())
@@ -152,6 +138,35 @@ public final class BlahVariantWalker extends VariantWalker {
             return;
         }
 
+        final String variantChr = variant.getContig();
+        if (currentContig != variantChr ) {//if the contig tsvs don't exist yet -- create them
+            // TODO should this be pulled out into a helper method?
+            try {
+                final GATKPathSpecifier petDirectory = petOutput;
+                final Path petOutputPathByChr = new GATKPathSpecifier(petDirectory + variantChr + FILETYPE).toPath(); // TODO does this need a separator '/'
+                List<String> petHeader = BlahPetCreation.getHeaders();
+                final SimpleXSVWriter petWriter = new SimpleXSVWriter(petOutputPathByChr, SEPARATOR);
+                petWriter.setHeaderLine(petHeader);
+                petWriterCollection.put(variantChr, petWriter);
+            } catch (final IOException e) {
+                throw new UserException("Could not create pet outputs", e);
+            }
+
+            try {
+                final GATKPathSpecifier vetDirectory = vetOutput;
+                final Path vetOutputPathByChr = new GATKPathSpecifier(vetDirectory + variantChr + FILETYPE).toPath();
+                List<String> vetHeader = BlahVetCreation.getHeaders();
+                final SimpleXSVWriter vetWriter = new SimpleXSVWriter(vetOutputPathByChr, SEPARATOR);
+                vetWriter.setHeaderLine(vetHeader);
+                vetWriterCollection.put(variantChr, vetWriter);
+            } catch (final IOException e) {
+                throw new UserException("Could not create vet outputs", e);
+            }
+            currentContig = variantChr;
+        }
+
+        final SimpleXSVWriter vetWriter = vetWriterCollection.get(variantChr);
+
         // create VET output
         if (!variant.isReferenceBlock()) {
             final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(variant);
@@ -176,11 +191,12 @@ public final class BlahVariantWalker extends VariantWalker {
                 // to true.  In a GVCF most blocks are adjacent to each other so they wouldn't normally get merged.  We check
                 // if the current record is adjacent to the previous record and "overlap" them if they are so our set is as
                 // small as possible while still containing the same bases.
-                final SimpleInterval variantInterval = new SimpleInterval(variant.getContig(), start, end);
+                final SimpleInterval variantInterval = new SimpleInterval(variantChr, start, end);
                 final int intervalStart = (previousInterval != null && previousInterval.overlapsWithMargin(variantInterval, 1)) ?
                         previousInterval.getStart() : variantInterval.getStart();
                 final int intervalEnd = (previousInterval != null && previousInterval.overlapsWithMargin(variantInterval, 1)) ?
                         Math.max(previousInterval.getEnd(), variantInterval.getEnd()) : variantInterval.getEnd();
+
                 final GenomeLoc possiblyMergedGenomeLoc = coverageLocSortedSet.getGenomeLocParser().createGenomeLoc(variantInterval.getContig(), intervalStart, intervalEnd);
                 coverageLocSortedSet.add(possiblyMergedGenomeLoc, true);
                 previousInterval = new SimpleInterval(possiblyMergedGenomeLoc);
@@ -195,6 +211,7 @@ public final class BlahVariantWalker extends VariantWalker {
 
                 // write the position to the XSV
                 for (List<String> TSVLineToCreatePet : TSVLinesToCreatePet) {
+                    final SimpleXSVWriter petWriter = petWriterCollection.get(variantChr);
                     petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
                 }
             }
@@ -208,9 +225,10 @@ public final class BlahVariantWalker extends VariantWalker {
         logger.info("MISSING_GREP_HERE:" + uncoveredIntervals.coveredSize());
         logger.info("MISSING_PERCENTAGE_GREP_HERE:" + (1.0 * uncoveredIntervals.coveredSize()) / intervalArgumentGenomeLocSortedSet.coveredSize());
         for (GenomeLoc genomeLoc : uncoveredIntervals) {
+            final String contig = genomeLoc.getContig();
             // write the position to the XSV
             for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(genomeLoc.getStart(), genomeLoc.getEnd(), sampleName)) {
-                petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
+                petWriterCollection.get(contig).getNewLineBuilder().setRow(TSVLineToCreatePet).write();
             }
         }
         return 0;
@@ -218,25 +236,29 @@ public final class BlahVariantWalker extends VariantWalker {
 
     @Override
     public void closeTool() {
-        if (vetWriter != null ) {
-            try {
-                vetWriter.close();
-            } catch (final Exception e) {
-                throw new IllegalArgumentException("Couldn't close VET writer", e);
+        for (SimpleXSVWriter writer:vetWriterCollection.values()) {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (final Exception e) {
+                    throw new IllegalArgumentException("Couldn't close VET writer", e);
+                }
             }
         }
-        if (petWriter != null) {
-            try {
-                petWriter.close();
-            } catch (final Exception e) {
-                throw new IllegalArgumentException("Couldn't close PET writer", e);
+        for (SimpleXSVWriter writer:petWriterCollection.values()) {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (final Exception e) {
+                    throw new IllegalArgumentException("Couldn't close PET writer", e);
+                }
             }
         }
         if (sampleMetadataWriter != null) {
             try {
                 sampleMetadataWriter.close();
             } catch (final Exception e) {
-                throw new IllegalArgumentException("Couldn't close Sample List writer", e);
+                throw new IllegalArgumentException("Couldn't close Sample Metadata writer", e);
             }
         }
     }
