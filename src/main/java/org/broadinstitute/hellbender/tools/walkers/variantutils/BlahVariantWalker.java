@@ -72,7 +72,7 @@ public final class BlahVariantWalker extends VariantWalker {
             shortName = "IG",
             doc = "Ref Block GQ band to ignore, bands of 10 e.g 0-9 get combined to 0, 20-29 get combined to 20",
             optional = true)
-    public String gqStateToIgnore = "MISSING";
+    public String gqStateToIgnore = "THIRTY";
 
     @Override
     public boolean requiresIntervals() {
@@ -142,7 +142,7 @@ public final class BlahVariantWalker extends VariantWalker {
         if (currentContig != variantChr ) {//if the contig tsvs don't exist yet -- create them
             // TODO should this be pulled out into a helper method?
             try {
-                final GATKPathSpecifier petDirectory = petOutput;
+                final String petDirectory = petOutput.getURIString();
                 final Path petOutputPathByChr = new GATKPathSpecifier(petDirectory + variantChr + FILETYPE).toPath(); // TODO does this need a separator '/'
                 List<String> petHeader = BlahPetCreation.getHeaders();
                 final SimpleXSVWriter petWriter = new SimpleXSVWriter(petOutputPathByChr, SEPARATOR);
@@ -153,7 +153,7 @@ public final class BlahVariantWalker extends VariantWalker {
             }
 
             try {
-                final GATKPathSpecifier vetDirectory = vetOutput;
+                final String vetDirectory = vetOutput.getURIString();
                 final Path vetOutputPathByChr = new GATKPathSpecifier(vetDirectory + variantChr + FILETYPE).toPath();
                 List<String> vetHeader = BlahVetCreation.getHeaders();
                 final SimpleXSVWriter vetWriter = new SimpleXSVWriter(vetOutputPathByChr, SEPARATOR);
@@ -183,7 +183,7 @@ public final class BlahVariantWalker extends VariantWalker {
             int end = Math.min(genomeLoc.getEnd(), variant.getEnd());
             // TODO throw an error if start and end are the same?
 
-            // create PET output if the reference block's GQ is not the one to throw away or its a variant
+                // create PET output if the reference block's GQ is not the one to throw away or its a variant
             if (!variant.isReferenceBlock() || !BlahPetCreation.getGQStateEnum(variant.getGenotype(0).getGQ()).equals(BlahPetCreation.GQStateEnum.valueOf(gqStateToIgnore))) {
 
                 // add interval to "covered" intervals
@@ -226,7 +226,7 @@ public final class BlahVariantWalker extends VariantWalker {
         logger.info("MISSING_PERCENTAGE_GREP_HERE:" + (1.0 * uncoveredIntervals.coveredSize()) / intervalArgumentGenomeLocSortedSet.coveredSize());
         for (GenomeLoc genomeLoc : uncoveredIntervals) {
             final String contig = genomeLoc.getContig();
-            // write the position to the XSV
+            // write the position to the XSV TODO THIS IS WRONG -- it's finding missing AFTER shit has been dropped so it's filling in that too
             for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(genomeLoc.getStart(), genomeLoc.getEnd(), sampleName)) {
                 petWriterCollection.get(contig).getNewLineBuilder().setRow(TSVLineToCreatePet).write();
             }

@@ -23,6 +23,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.broadinstitute.hellbender.utils.io.IOUtils.createTempFileInDirectory;
@@ -97,52 +98,42 @@ public class BlahVariantWalkerIntegrationTest extends CommandLineProgramTest {
             final File truthVET,
             final File inputVCF,
             final File inputIntervalList,
-            final String missingArg,
+            final Optional<String> missingArg,
             final Boolean successBool
     ) {
         final File vetDirectory = createTempDir("vet");
-        final File vetWritten = createTempFileInDirectory("vet", ".tsv", vetDirectory);
         final File petDirectory = createTempDir("pet");
-        final File petWritten = createTempFileInDirectory("pet", ".tsv", petDirectory);
         final File metadataWritten = createTempFile("metadata", ".tsv");
         final List<String> args = Arrays.asList(
                 "-V", inputVCF.getAbsolutePath(), // the original gVCF for ingest
                 "-VO", vetDirectory.getAbsolutePath(), // Path to the directory where the variants table should be written
                 "-PO", petDirectory.getAbsolutePath(), // Path to the directory where the positions expanded table should be written
                 "-SMO", metadataWritten.getAbsolutePath(), // Path to where the positions expanded table should be written
-                "-IG", missingArg,
+                missingArg.isPresent()? "-IG" : "",
+                missingArg.isPresent()? missingArg.get() : "",
                 "-L", inputIntervalList.getAbsolutePath()); // TODO do this with missing and non-missing
         // TODO what is the successBool expecting?
 
         runCommandLine(args);
 
         // verify the output pet tsv
-        Assert.assertTrue(petWritten.isFile());
+        File[] petFiles = petDirectory.listFiles();
+        File petFile = petFiles[0];
+        Assert.assertTrue(petFile.isFile());
         try {
-            //long lineCount = Files.lines(Paths.get(petWritten.getAbsolutePath())).count();
-            File[] petFiles = petDirectory.listFiles();
-            File petFile = petFiles[0];
-            //File pet20File = petFiles[0];
             long lineCount = Files.lines(Paths.get(petFile.getAbsolutePath())).count();
-
-           // long lineCount2 = Files.lines(pet20File).count();
-            //long lineCount3 = Files.lines(Paths.get(petDirectory.getAbsolutePath()+"20.tsv")).count();
             long truthLineCount = Files.lines(Paths.get(truthPET.getAbsolutePath())).count();
 
             if (missingArg == null) {
                 Assert.assertEquals(lineCount, truthLineCount);
             } else {
-                //Assert.assertEquals(lineCount, truthLineCount); // truthline count should be way less if missing gq60?
+                Assert.assertEquals(lineCount, truthLineCount); // truthline count should be way less if missing gq60?
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        String test1 = vetDirectory.getAbsolutePath();
-
-
-        try (Stream<String> petStream = Files.lines(Paths.get(petWritten.getAbsolutePath()))) {
-            final String test = petStream.findAny().get();
+        try (Stream<String> petStream = Files.lines(Paths.get(petFile.getAbsolutePath()))) {
             final String[] petRowValues = petStream.findAny().get().split("\t");
             Assert.assertEquals(petRowValues.length, PET_COL_COUNT);
         } catch (IOException e) {
@@ -150,15 +141,17 @@ public class BlahVariantWalkerIntegrationTest extends CommandLineProgramTest {
         }
 
         // verify the output vet tsv
-        Assert.assertTrue(vetWritten.isFile());
+        File[] vetFiles = vetDirectory.listFiles();
+        File vetFile = vetFiles[0];
+        Assert.assertTrue(vetFile.isFile());
         try {
-            long lineCount = Files.lines(Paths.get(vetWritten.getAbsolutePath())).count();
+            long lineCount = Files.lines(Paths.get(vetFile.getAbsolutePath())).count();
             long truthLineCount = Files.lines(Paths.get(truthVET.getAbsolutePath())).count();
             Assert.assertEquals(lineCount, truthLineCount);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        try (Stream<String> stream = Files.lines(Paths.get(vetWritten.getAbsolutePath()))) {
+        try (Stream<String> stream = Files.lines(Paths.get(vetFile.getAbsolutePath()))) {
             // TODO do I need to bother to assert any actual values? stream.forEach(System.out::println);
         } catch (IOException e) {
             e.printStackTrace();
@@ -170,7 +163,8 @@ public class BlahVariantWalkerIntegrationTest extends CommandLineProgramTest {
         return new Object[][]{
                 // truthPET, truthVET, inputVCF, input interval list, missingArg, successBool
                 //{truthPET, truthVET, inputVCF, inputINTERVAL_LIST, null, true},
-                {truthPET, truthVET, inputVCF, inputINTERVAL_LIST, "SIXTY", true},
+                //{truthPET, truthVET, inputVCF, inputINTERVAL_LIST, Optional.ofNullable("SIXTY"), true},
+                {truthPET, truthVET, inputVCF, inputINTERVAL_LIST, Optional.ofNullable("THIRTY"), true},
                // {truthPET, truthVET, inputVCF, inputINTERVAL_LIST, null, false},
                 //{truthPET, truthVET, inputVCF, inputINTERVAL_LIST, BlahPetCreation.GQStateEnum.SIXTY, false},
         };
