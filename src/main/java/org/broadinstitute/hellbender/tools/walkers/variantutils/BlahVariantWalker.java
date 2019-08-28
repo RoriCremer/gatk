@@ -153,7 +153,7 @@ public final class BlahVariantWalker extends VariantWalker {
             }
 
             try {
-                final String vetDirectory = vetOutput.getURIString();
+                final String vetDirectory = vetOutput.getURIString(); // TODO this is still stripping the '/'
                 final Path vetOutputPathByChr = new GATKPathSpecifier(vetDirectory + variantChr + FILETYPE).toPath();
                 List<String> vetHeader = BlahVetCreation.getHeaders();
                 final SimpleXSVWriter vetWriter = new SimpleXSVWriter(vetOutputPathByChr, SEPARATOR);
