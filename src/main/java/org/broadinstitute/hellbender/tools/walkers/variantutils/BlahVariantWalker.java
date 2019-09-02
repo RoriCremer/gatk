@@ -116,6 +116,23 @@ public final class BlahVariantWalker extends VariantWalker {
         }
     }
 
+    public void setCoveredInterval( String variantChr, int start, int end) {
+        // add interval to "covered" intervals
+        // GenomeLocSortedSet will automatically merge intervals that are overlapping when setting `mergeIfIntervalOverlaps`
+        // to true.  In a GVCF most blocks are adjacent to each other so they wouldn't normally get merged.  We check
+        // if the current record is adjacent to the previous record and "overlap" them if they are so our set is as
+        // small as possible while still containing the same bases.
+        final SimpleInterval variantInterval = new SimpleInterval(variantChr, start, end);
+        final int intervalStart = (previousInterval != null && previousInterval.overlapsWithMargin(variantInterval, 1)) ?
+                previousInterval.getStart() : variantInterval.getStart();
+        final int intervalEnd = (previousInterval != null && previousInterval.overlapsWithMargin(variantInterval, 1)) ?
+                Math.max(previousInterval.getEnd(), variantInterval.getEnd()) : variantInterval.getEnd();
+
+        final GenomeLoc possiblyMergedGenomeLoc = coverageLocSortedSet.getGenomeLocParser().createGenomeLoc(variantInterval.getContig(), intervalStart, intervalEnd);
+        coverageLocSortedSet.add(possiblyMergedGenomeLoc, true);
+        previousInterval = new SimpleInterval(possiblyMergedGenomeLoc);
+    }
+
     @Override
     public void apply(final VariantContext variant, final ReadsContext readsContext, final ReferenceContext referenceContext, final FeatureContext featureContext) {
 
@@ -183,23 +200,17 @@ public final class BlahVariantWalker extends VariantWalker {
             int end = Math.min(genomeLoc.getEnd(), variant.getEnd());
             // TODO throw an error if start and end are the same?
 
-                // create PET output if the reference block's GQ is not the one to throw away or its a variant
+            // for each of the reference blocks with the GQ to discard, keep track of the positions for the missing insertions
+            if (BlahPetCreation.getGQStateEnum(variant.getGenotype(0).getGQ()).equals(BlahPetCreation.GQStateEnum.valueOf(gqStateToIgnore))) {
+                // add interval to "covered" intervals
+                setCoveredInterval(variantChr, start, end);
+            }
+
+            // create PET output if the reference block's GQ is not the one to discard or its a variant
             if (!variant.isReferenceBlock() || !BlahPetCreation.getGQStateEnum(variant.getGenotype(0).getGQ()).equals(BlahPetCreation.GQStateEnum.valueOf(gqStateToIgnore))) {
 
                 // add interval to "covered" intervals
-                // GenomeLocSortedSet will automatically merge intervals that are overlapping when setting `mergeIfIntervalOverlaps`
-                // to true.  In a GVCF most blocks are adjacent to each other so they wouldn't normally get merged.  We check
-                // if the current record is adjacent to the previous record and "overlap" them if they are so our set is as
-                // small as possible while still containing the same bases.
-                final SimpleInterval variantInterval = new SimpleInterval(variantChr, start, end);
-                final int intervalStart = (previousInterval != null && previousInterval.overlapsWithMargin(variantInterval, 1)) ?
-                        previousInterval.getStart() : variantInterval.getStart();
-                final int intervalEnd = (previousInterval != null && previousInterval.overlapsWithMargin(variantInterval, 1)) ?
-                        Math.max(previousInterval.getEnd(), variantInterval.getEnd()) : variantInterval.getEnd();
-
-                final GenomeLoc possiblyMergedGenomeLoc = coverageLocSortedSet.getGenomeLocParser().createGenomeLoc(variantInterval.getContig(), intervalStart, intervalEnd);
-                coverageLocSortedSet.add(possiblyMergedGenomeLoc, true);
-                previousInterval = new SimpleInterval(possiblyMergedGenomeLoc);
+                setCoveredInterval(variantChr, start, end);
 
                 List<List<String>> TSVLinesToCreatePet;
                 // handle deletions that span across multiple intervals
@@ -226,7 +237,7 @@ public final class BlahVariantWalker extends VariantWalker {
         logger.info("MISSING_PERCENTAGE_GREP_HERE:" + (1.0 * uncoveredIntervals.coveredSize()) / intervalArgumentGenomeLocSortedSet.coveredSize());
         for (GenomeLoc genomeLoc : uncoveredIntervals) {
             final String contig = genomeLoc.getContig();
-            // write the position to the XSV TODO THIS IS WRONG -- it's finding missing AFTER shit has been dropped so it's filling in that too
+            // write the position to the XSV
             for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(genomeLoc.getStart(), genomeLoc.getEnd(), sampleName)) {
                 petWriterCollection.get(contig).getNewLineBuilder().setRow(TSVLineToCreatePet).write();
             }
