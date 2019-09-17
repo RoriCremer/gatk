@@ -31,6 +31,7 @@ public final class BlahVetCreation {
      *     call_name, // req
      *     call_genotype, // req
      *     call_AD,
+     *     call_DP, // Laura says consider removing for now-- so similar to AS_VarDP
      *     call_GQ, // req
      *     call_PGT,
      *     call_PID,
