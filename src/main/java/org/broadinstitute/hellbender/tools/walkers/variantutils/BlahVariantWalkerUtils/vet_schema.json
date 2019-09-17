@@ -73,12 +73,6 @@
  },
  {
    "description": "[DESCRIPTION]",
-   "name": "call_DP",
-   "type": "Integer",
-   "mode": "Nullable"
- },
- {
-   "description": "[DESCRIPTION]",
    "name": "call_GQ",
    "type": "Integer",
    "mode": "Required"

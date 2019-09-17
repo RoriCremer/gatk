@@ -19,25 +19,23 @@ public final class BlahVetCreation {
 
     /**
      * Expected headers for the Variant Table (VET)
-     * start_position, // req
-     * reference_bases, // req
-     * alternate_bases, // req ** concat all alt bases with '|' delimiter // TODO--wait, why is this here? looks like its in v1, but not v2
-     * alternate_bases.alt, // req
-     * alternate_bases.AS_RAW_MQ, // req
-     * alternate_bases.AS_RAW_MQRankSum,
-     * alternate_bases.AS_QUALapprox, // req
-     * alternate_bases.AS_RAW_ReadPosRankSum,
-     * alternate_bases.AS_SB_TABLE, // req
-     * alternate_bases.AS_VarDP, // req
-     * call, // req **
-     * call_name, // req
-     * call_genotype, // req
-     * call_AD,
-     * call_DP, // remove for now--so similar to AS_VarDP
-     * call_GQ, // req
-     * call_PGT,
-     * call_PID,
-     * call_PL
+     *     start_position, // req
+     *     reference_bases, // req
+     *     alternate_bases_alt, // req
+     *     alternate_bases_AS_RAW_MQ, // req
+     *     alternate_bases_AS_RAW_MQRankSum,
+     *     alternate_bases_AS_QUALapprox, // req
+     *     alternate_bases_AS_RAW_ReadPosRankSum,
+     *     alternate_bases_AS_SB_TABLE, // req
+     *     alternate_bases_AS_VarDP, // req
+     *     call_name, // req
+     *     call_genotype, // req
+     *     call_AD,
+     *     call_GQ, // req
+     *     call_PGT,
+     *     call_PID,
+     *     call_PL // req
+     *
      */
     public enum HeaderFieldEnum {
         // TODO is this where the validation step (required vs not) lives  -- fail if there is missing data for a required field
