@@ -129,9 +129,9 @@ public final class BlahVetCreation {
                 }
                 // check to see if there are two or three values, make sure last is smallest, throw out last
                 List<String> outList = Arrays.asList(out.split("\\|"));
-                if (outList.size() == 2 | outList.size() == 3) { // check length of array -- needs to be 3
+                if (outList.size() == 2 | outList.size() == 3) { // check length of array -- needs to be 2 or 3
                     if (outList.lastIndexOf(Collections.min(outList)) == outList.size() - 1) { // this should be the smallest value
-                        out = StringUtils.join(outList.subList(0, outList.size() - 2), VCFConstants.PHASED);
+                        out = StringUtils.join(outList.subList(0, outList.size() - 1), VCFConstants.PHASED);
                     } else {
                         throw new UserException(String.format("Expected the final value of AS_QUALapprox to be the smallest at %d", variant.getStart()));
                     }
