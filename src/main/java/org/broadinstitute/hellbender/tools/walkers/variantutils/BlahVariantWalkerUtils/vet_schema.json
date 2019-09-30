@@ -77,6 +77,12 @@
    "type": "Integer",
    "mode": "Required"
  },
+  {
+    "description": "[DESCRIPTION]",
+    "name": "call_DP",
+    "type": "Integer",
+    "mode": "Nullable"
+  },
  {
    "description": "[DESCRIPTION]",
    "name": "call_PGT",
