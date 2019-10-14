@@ -74,6 +74,14 @@ public final class BlahVariantWalker extends VariantWalker {
             optional = true)
     public String gqStateToIgnore = "SIXTY";
 
+    //TODO add param for running this locally? If we are creating directories in the cloud it's one string, but locally, it's another
+    // If local, we want the chr names to be concat-ed, but if on the cloud, they can get their own directories
+    @Argument(fullName = "run-locally",
+            shortName = "RLO",
+            doc = "Default behavior assumes that directories can be created for each chr inside the pet and vet dirs",
+            optional = true)
+    public Boolean local = false;
+
     @Override
     public boolean requiresIntervals() {
         return true;
@@ -160,7 +168,12 @@ public final class BlahVariantWalker extends VariantWalker {
             // TODO should this be pulled out into a helper method?
             try {
                 final String petDirectory = petOutput.getURIString();
-                final Path petOutputPathByChr = new GATKPathSpecifier(petDirectory + sampleName + "_" + variantChr + FILETYPE).toPath(); // TODO does this need a separator '/'
+                Path petOutputPathByChr;
+                if (local) {
+                    petOutputPathByChr = new GATKPathSpecifier(petDirectory + sampleName + "_" + variantChr + FILETYPE).toPath(); // TODO does this need a separator '/'
+                } else {
+                    petOutputPathByChr = new GATKPathSpecifier(petDirectory + variantChr + "/" + sampleName + FILETYPE).toPath();
+                }
                 List<String> petHeader = BlahPetCreation.getHeaders();
                 final SimpleXSVWriter petWriter = new SimpleXSVWriter(petOutputPathByChr, SEPARATOR);
                 petWriter.setHeaderLine(petHeader);
@@ -171,7 +184,12 @@ public final class BlahVariantWalker extends VariantWalker {
 
             try {
                 final String vetDirectory = vetOutput.getURIString(); // TODO this is still stripping the '/'
-                final Path vetOutputPathByChr = new GATKPathSpecifier(vetDirectory + sampleName + "_" + variantChr + FILETYPE).toPath();
+                Path vetOutputPathByChr;
+                if (local) {
+                    vetOutputPathByChr = new GATKPathSpecifier(vetDirectory + sampleName + "_" + variantChr + FILETYPE).toPath(); // TODO does this need a separator '/'
+                } else {
+                    vetOutputPathByChr = new GATKPathSpecifier(vetDirectory + variantChr + "/" + sampleName + FILETYPE).toPath();
+                }
                 List<String> vetHeader = BlahVetCreation.getHeaders();
                 final SimpleXSVWriter vetWriter = new SimpleXSVWriter(vetOutputPathByChr, SEPARATOR);
                 vetWriter.setHeaderLine(vetHeader);
