@@ -72,7 +72,7 @@ public final class BlahVariantWalker extends VariantWalker {
             shortName = "IG",
             doc = "Ref Block GQ band to ignore, bands of 10 e.g 0-9 get combined to 0, 20-29 get combined to 20",
             optional = true)
-    public String gqStateToIgnore = "THIRTY";
+    public String gqStateToIgnore = "SIXTY";
 
     @Override
     public boolean requiresIntervals() {
@@ -160,7 +160,7 @@ public final class BlahVariantWalker extends VariantWalker {
             // TODO should this be pulled out into a helper method?
             try {
                 final String petDirectory = petOutput.getURIString();
-                final Path petOutputPathByChr = new GATKPathSpecifier(petDirectory + variantChr + FILETYPE).toPath(); // TODO does this need a separator '/'
+                final Path petOutputPathByChr = new GATKPathSpecifier(petDirectory + sampleName + "_" + variantChr + FILETYPE).toPath(); // TODO does this need a separator '/'
                 List<String> petHeader = BlahPetCreation.getHeaders();
                 final SimpleXSVWriter petWriter = new SimpleXSVWriter(petOutputPathByChr, SEPARATOR);
                 petWriter.setHeaderLine(petHeader);
@@ -171,7 +171,7 @@ public final class BlahVariantWalker extends VariantWalker {
 
             try {
                 final String vetDirectory = vetOutput.getURIString(); // TODO this is still stripping the '/'
-                final Path vetOutputPathByChr = new GATKPathSpecifier(vetDirectory + variantChr + FILETYPE).toPath();
+                final Path vetOutputPathByChr = new GATKPathSpecifier(vetDirectory + sampleName + "_" + variantChr + FILETYPE).toPath();
                 List<String> vetHeader = BlahVetCreation.getHeaders();
                 final SimpleXSVWriter vetWriter = new SimpleXSVWriter(vetOutputPathByChr, SEPARATOR);
                 vetWriter.setHeaderLine(vetHeader);
