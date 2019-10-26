@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.nio.file.Path;
+import java.io.File;
 
 /**
  * Example/toy program that shows how to implement the VariantWalker interface. Prints supplied variants
@@ -53,34 +54,21 @@ public final class BlahVariantWalker extends VariantWalker {
     private List<SimpleInterval> userIntervals;
 
 
-    @Argument(fullName = "vet-out-path",
-            shortName = "VO",
-            doc = "Path to the directory where the variants TSVs should be written")
-    public GATKPathSpecifier vetOutput = null;
+    // Inside the parent directory, a directory for each chromosome will be created, with a pet directory and vet directory in each one.
+    // Each pet and vet directory will hold all of the pet and vet tsvs for each sample
+    // A metadata directory will be created, with a metadata tsv for each sample
 
-    @Argument(fullName = "pet-out-path",
-            shortName = "PO",
-            doc = "Path to the directory where the positions expanded TSVs should be written")
-    public GATKPathSpecifier petOutput = null;
-
-    @Argument(fullName = "sample-metadata-out-path",
-            shortName = "SMO",
-            doc = "Path to where the sample metadata TSV should be written")
-    public GATKPathSpecifier sampleMetadataOutput = null;
+    @Argument(fullName = "vet-pet-out-path",
+            shortName = "VPO",
+            doc = "Path to the directory where the variants TSVs and positions expanded TSVs should be written")
+    public GATKPathSpecifier parentOutputDirectory = null;
+    public Path parentDirectory = null;
 
     @Argument(fullName = "ref-block-gq-to-ignore",
             shortName = "IG",
             doc = "Ref Block GQ band to ignore, bands of 10 e.g 0-9 get combined to 0, 20-29 get combined to 20",
             optional = true)
     public String gqStateToIgnore = "SIXTY";
-
-    //TODO add param for running this locally? If we are creating directories in the cloud it's one string, but locally, it's another
-    // If local, we want the chr names to be concat-ed, but if on the cloud, they can get their own directories
-    @Argument(fullName = "run-locally",
-            shortName = "RLO",
-            doc = "Default behavior assumes that directories can be created for each chr inside the pet and vet dirs",
-            optional = true)
-    public Boolean local = false;
 
     @Override
     public boolean requiresIntervals() {
@@ -90,12 +78,29 @@ public final class BlahVariantWalker extends VariantWalker {
     @Override
     public void onTraversalStart() {
 
+        // Get sample name
         final VCFHeader inputVCFHeader = getHeaderForVariants();
         final SampleList samples = new IndexedSampleList(inputVCFHeader.getGenotypeSamples());
         if (samples.numberOfSamples() > 1){
             throw new UserException("This tool can only be run on single sample vcfs");
         }
         sampleName = samples.getSample(0);
+
+
+        // If the metadata directory doesn't exist yet, create it
+        parentDirectory = parentOutputDirectory.toPath();
+        final String metadataDirectoryName = "metadata";
+        final Path metadataDirectoryPath = parentDirectory.resolve(metadataDirectoryName);
+        final File sampleMetadataOutputDirectory = new File(metadataDirectoryPath.toString());
+
+        if (! sampleMetadataOutputDirectory.exists()){
+            sampleMetadataOutputDirectory.mkdir();
+        }
+
+        // Create a metadata file to go into it for _this_ sample
+        final String sampleMetadataName = sampleName + FILETYPE;
+        final Path sampleMetadataOutput = metadataDirectoryPath.resolve(sampleMetadataName);
+
 
         final SAMSequenceDictionary seqDictionary = getBestAvailableSequenceDictionary();
 
@@ -111,7 +116,7 @@ public final class BlahVariantWalker extends VariantWalker {
             String intervalListBlob = StringUtils.join(intervalList, ", ");
             String intervalListMd5 = Utils.calcMD5(intervalListBlob);
             List<String> sampleListHeader = BlahSampleListCreation.getHeaders();
-            sampleMetadataWriter = new SimpleXSVWriter(sampleMetadataOutput.toPath(), SEPARATOR);
+            sampleMetadataWriter = new SimpleXSVWriter(sampleMetadataOutput, SEPARATOR);
             sampleMetadataWriter.setHeaderLine(sampleListHeader);
             final List<String> TSVLineToCreateSampleMetadata = BlahSampleListCreation.createSampleListRow(
                     sampleName,
@@ -164,18 +169,40 @@ public final class BlahVariantWalker extends VariantWalker {
         }
 
         final String variantChr = variant.getContig();
-        if (currentContig != variantChr ) {//if the contig tsvs don't exist yet -- create them
-            // TODO should this be pulled out into a helper method?
+
+
+
+        // If this contig directory don't exist yet -- create it
+        final String contigDirectoryName = variantChr;
+        final Path contigDirectoryPath = parentDirectory.resolve(contigDirectoryName);
+        final File contigDirectory = new File(contigDirectoryPath.toString());
+        if (! contigDirectory.exists()){
+            contigDirectory.mkdir();
+        }
+        // If the pet directory inside it doesn't exist yet -- create it
+        final String petDirectoryName = "pet";
+        final Path petDirectoryPath = contigDirectoryPath.resolve(petDirectoryName);
+        final File petDirectory = new File(petDirectoryPath.toString());
+        if (! petDirectory.exists()){
+            petDirectory.mkdir();
+        }
+        // If the vet directory inside it doesn't exist yet -- create it
+        final String vetDirectoryName = "vet";
+        final Path vetDirectoryPath = contigDirectoryPath.resolve(vetDirectoryName);
+        final File vetDirectory = new File(vetDirectoryPath.toString());
+        if (! vetDirectory.exists()){
+            vetDirectory.mkdir();
+        }
+
+
+        if (currentContig != variantChr ) {// if the pet & vet tsvs don't exist yet -- create them
             try {
-                final String petDirectory = petOutput.getURIString();
-                Path petOutputPathByChr;
-                if (local) {
-                    petOutputPathByChr = new GATKPathSpecifier(petDirectory + sampleName + "_" + variantChr + FILETYPE).toPath(); // TODO does this need a separator '/'
-                } else {
-                    petOutputPathByChr = new GATKPathSpecifier(petDirectory + variantChr + "/" + sampleName + FILETYPE).toPath();
-                }
+                // Create a pet file to go into the pet dir for _this_ sample
+                final String petOutputName = sampleName + FILETYPE;
+                final Path petOutputPath = petDirectoryPath.resolve(petOutputName);
+                // Write to it
                 List<String> petHeader = BlahPetCreation.getHeaders();
-                final SimpleXSVWriter petWriter = new SimpleXSVWriter(petOutputPathByChr, SEPARATOR);
+                final SimpleXSVWriter petWriter = new SimpleXSVWriter(petOutputPath, SEPARATOR);
                 petWriter.setHeaderLine(petHeader);
                 petWriterCollection.put(variantChr, petWriter);
             } catch (final IOException e) {
@@ -183,15 +210,12 @@ public final class BlahVariantWalker extends VariantWalker {
             }
 
             try {
-                final String vetDirectory = vetOutput.getURIString(); // TODO this is still stripping the '/'
-                Path vetOutputPathByChr;
-                if (local) {
-                    vetOutputPathByChr = new GATKPathSpecifier(vetDirectory + sampleName + "_" + variantChr + FILETYPE).toPath(); // TODO does this need a separator '/'
-                } else {
-                    vetOutputPathByChr = new GATKPathSpecifier(vetDirectory + variantChr + "/" + sampleName + FILETYPE).toPath();
-                }
+                // Create a vet file to go into the pet dir for _this_ sample
+                final String vetOutputName = sampleName + FILETYPE;
+                final Path vetOutputPath = vetDirectoryPath.resolve(vetOutputName);
+                // Write to it
                 List<String> vetHeader = BlahVetCreation.getHeaders();
-                final SimpleXSVWriter vetWriter = new SimpleXSVWriter(vetOutputPathByChr, SEPARATOR);
+                final SimpleXSVWriter vetWriter = new SimpleXSVWriter(vetOutputPath, SEPARATOR);
                 vetWriter.setHeaderLine(vetHeader);
                 vetWriterCollection.put(variantChr, vetWriter);
             } catch (final IOException e) {
