@@ -27,7 +27,8 @@ public final class BlahPetCreation {
         FORTY("4"),
         FIFTY("5"),
         SIXTY("6"),
-        MISSING("m");
+        MISSING("m"),
+        UNKNOWN("u");
 
         String value;
 
@@ -69,6 +70,19 @@ public final class BlahPetCreation {
                 rows.add(row);
             }
         }
+
+        return rows;
+    }
+
+    public static List<List<String>> createArrayPositionRows(final int start, final int end, final VariantContext variant, final String sampleName) {
+
+        List<List<String>> rows = new ArrayList<>();
+
+        List<String> row = new ArrayList<>();
+        row.add(String.valueOf(start));
+        row.add(sampleName);
+        row.add(GQStateEnum.UNKNOWN.value);
+        rows.add(row);
 
         return rows;
     }
