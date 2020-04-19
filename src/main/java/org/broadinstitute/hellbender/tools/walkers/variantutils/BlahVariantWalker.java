@@ -2,7 +2,9 @@ package org.broadinstitute.hellbender.tools.walkers.variantutils;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -20,6 +22,7 @@ import org.broadinstitute.hellbender.utils.*;
 import org.broadinstitute.hellbender.utils.genotyper.IndexedSampleList;
 import org.broadinstitute.hellbender.utils.genotyper.SampleList;
 import org.broadinstitute.hellbender.utils.tsv.SimpleXSVWriter;
+import org.broadinstitute.hellbender.utils.variant.GATKVariantContextUtils;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -119,9 +122,15 @@ public final class BlahVariantWalker extends VariantWalker {
             doc = "Sample name to sample id mapping")
     public File sampleMap;
 
+    @Argument(fullName = "is-array",
+            shortName = "IA",
+            doc = "Flag if the input vcf is an array",
+            optional = true)
+    public Boolean isArray = false;
+
     @Override
     public boolean requiresIntervals() {
-        return true;
+        return true; // TODO -- do I need to check the boolean flag on this?
     }
 
     @Override
@@ -282,7 +291,7 @@ public final class BlahVariantWalker extends VariantWalker {
                 final String vetOutputName = sampleName + FILETYPE;
                 final Path vetOutputPath = vetDirectoryPath.resolve(vetOutputName);
                 // Write to it
-                List<String> vetHeader = BlahVetCreation.getHeaders();
+                List<String> vetHeader = isArray ?  BlahVetArrayCreation.getHeaders(): BlahVetCreation.getHeaders();
                 final SimpleXSVWriter vetWriter = new SimpleXSVWriter(vetOutputPath, SEPARATOR);
                 vetWriter.setHeaderLine(vetHeader);
                 vetWriterCollection.put(variantChr, vetWriter);
@@ -297,6 +306,48 @@ public final class BlahVariantWalker extends VariantWalker {
         // create VET output
         if (!variant.isReferenceBlock()) {
             int start = variant.getStart();
+            int end = variant.getEnd();
+            // check to see if this is an array
+            if(isArray) {
+                // check if the array variant is homref 0/0 and if it is then add it to the PET as an unknown state
+                ArrayList<Integer> allele_indices = new ArrayList<Integer>();
+                for (Allele allele : variant.getGenotype(0).getAlleles()){
+                    allele_indices.add(GATKVariantContextUtils.indexOfAllele(variant, allele, true, true, true  ));
+                }
+                String GT = variant.getGenotype(0).isPhased() ? org.apache.commons.lang.StringUtils.join(allele_indices, VCFConstants.PHASED) : org.apache.commons.lang.StringUtils.join(allele_indices, VCFConstants.UNPHASED) ;
+                if (GT.equals("0/0")) { // TODO is this too hard coded?
+                    List<List<String>> TSVLinesToCreatePet;
+                    TSVLinesToCreatePet = BlahPetCreation.createArrayPositionRows(get_location(variantChr, start), get_location(variantChr, end), variant, sampleId);
+
+                    for (List<String> TSVLineToCreatePet : TSVLinesToCreatePet) {
+                        final SimpleXSVWriter petWriter = petWriterCollection.get(variantChr);
+                        petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
+                    }
+
+
+                } else {
+                    final List<String> TSVLineToCreateVet = BlahVetArrayCreation.createVariantRow(variant); // TODO this must be updated for chr adjustment
+
+                    // write the variant to the XSV
+                    SimpleXSVWriter.LineBuilder vetLine = vetWriter.getNewLineBuilder();
+                    vetLine.setRow(TSVLineToCreateVet);
+                    vetLine.write();
+
+                    // also add to PET
+                    List<List<String>> TSVLinesToCreatePet;
+                    TSVLinesToCreatePet = BlahPetCreation.createPositionRows(get_location(variantChr, start), get_location(variantChr, end), variant, sampleId);
+
+                    // write the position to the XSV
+                    for (List<String> TSVLineToCreatePet : TSVLinesToCreatePet) {
+                        final SimpleXSVWriter petWriter = petWriterCollection.get(variantChr);
+                        petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
+                    }
+                }
+
+                // TODO do I want to return here so there is there's no additional work putting together the genomeloc etc?
+                return;
+            }
+            // else, it must be an exome or genome!
             final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(
                     get_location(variantChr, start),
                     variant,
@@ -361,6 +412,7 @@ public final class BlahVariantWalker extends VariantWalker {
         final GenomeLocSortedSet uncoveredIntervals = intervalArgumentGenomeLocSortedSet.subtractRegions(coverageLocSortedSet);
         logger.info("MISSING_GREP_HERE:" + uncoveredIntervals.coveredSize());
         logger.info("MISSING_PERCENTAGE_GREP_HERE:" + (1.0 * uncoveredIntervals.coveredSize()) / intervalArgumentGenomeLocSortedSet.coveredSize());
+        if (isArray) { return 0; }
         for (GenomeLoc genomeLoc : uncoveredIntervals) {
             final String contig = genomeLoc.getContig();
             // write the position to the XSV
