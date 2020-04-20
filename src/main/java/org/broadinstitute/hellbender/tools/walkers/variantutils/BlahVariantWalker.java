@@ -21,6 +21,8 @@ import org.broadinstitute.hellbender.utils.genotyper.IndexedSampleList;
 import org.broadinstitute.hellbender.utils.genotyper.SampleList;
 import org.broadinstitute.hellbender.utils.tsv.SimpleXSVWriter;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -50,6 +52,7 @@ public final class BlahVariantWalker extends VariantWalker {
     private GenomeLocSortedSet coverageLocSortedSet;
     private SimpleInterval previousInterval;
     private String sampleName;
+    private String sampleId;
     private String currentContig;
     private List<SimpleInterval> userIntervals;
 
@@ -70,6 +73,12 @@ public final class BlahVariantWalker extends VariantWalker {
             optional = true)
     public String gqStateToIgnore = "SIXTY";
 
+    // TODO add this new arguement and also this
+    @Argument(fullName = "sample-name-mapping",
+            shortName = "SNM",
+            doc = "Sample name to sample id mapping")
+    public File sampleMap;
+
     @Override
     public boolean requiresIntervals() {
         return true;
@@ -85,6 +94,27 @@ public final class BlahVariantWalker extends VariantWalker {
             throw new UserException("This tool can only be run on single sample vcfs");
         }
         sampleName = samples.getSample(0);
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(sampleMap));
+
+            String line; // Reading header, Ignoring
+            while ((line = br.readLine()) != null && !line.isEmpty()) {
+                String[] fields = line.split(",");
+                String name = fields[1];
+                if (sampleName.equals(name)) {
+                    sampleId = fields[0];
+                    break;
+                }
+            }
+            br.close();
+            if (sampleId == null) {
+                // sampleName not found
+                throw new UserException("Sample " + sampleName + " could not be found in sample mapping file");
+            }
+        } catch (final IOException ioe) { // FileNotFoundException e,
+            throw new UserException("Could not find sample mapping file");
+        }
+
 
 
         // If the metadata directory doesn't exist yet, create it
@@ -120,6 +150,7 @@ public final class BlahVariantWalker extends VariantWalker {
             sampleMetadataWriter.setHeaderLine(sampleListHeader);
             final List<String> TSVLineToCreateSampleMetadata = BlahSampleListCreation.createSampleListRow(
                     sampleName,
+                    sampleId,
                     intervalListMd5,
                     BlahPetCreation.GQStateEnum.valueOf(gqStateToIgnore));
             sampleMetadataWriter.getNewLineBuilder().setRow(TSVLineToCreateSampleMetadata).write();
@@ -228,7 +259,13 @@ public final class BlahVariantWalker extends VariantWalker {
 
         // create VET output
         if (!variant.isReferenceBlock()) {
-            final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(variant);
+            // final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(variant);
+            int start = variant.getStart();
+            final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(
+                    start,
+                    variant,
+                    sampleId
+            );
 
             // write the variant to the XSV
             SimpleXSVWriter.LineBuilder vetLine = vetWriter.getNewLineBuilder();
@@ -240,6 +277,7 @@ public final class BlahVariantWalker extends VariantWalker {
 
             int start = Math.max(genomeLoc.getStart(), variant.getStart());
             int end = Math.min(genomeLoc.getEnd(), variant.getEnd());
+
             // TODO throw an error if start and end are the same?
 
             // for each of the reference blocks with the GQ to discard, keep track of the positions for the missing insertions
@@ -257,9 +295,21 @@ public final class BlahVariantWalker extends VariantWalker {
                 List<List<String>> TSVLinesToCreatePet;
                 // handle deletions that span across multiple intervals
                 if (!firstInterval && !variant.isReferenceBlock()) {
-                    TSVLinesToCreatePet = BlahPetCreation.createSpanDelRows(start, end, variant, sampleName);
+                    // TSVLinesToCreatePet = BlahPetCreation.createSpanDelRows(start, end, variant, sampleName);
+                    TSVLinesToCreatePet = BlahPetCreation.createSpanDelRows(
+                            start,
+                            end,
+                            variant,
+                            sampleId
+                    );
                 } else {
-                    TSVLinesToCreatePet = BlahPetCreation.createPositionRows(start, end, variant, sampleName);
+                    // TSVLinesToCreatePet = BlahPetCreation.createPositionRows(start, end, variant, sampleName);
+                    TSVLinesToCreatePet = BlahPetCreation.createPositionRows(
+                            start,
+                            end,
+                            variant,
+                            sampleId
+                    );
                 }
 
                 // write the position to the XSV
@@ -280,7 +330,12 @@ public final class BlahVariantWalker extends VariantWalker {
         for (GenomeLoc genomeLoc : uncoveredIntervals) {
             final String contig = genomeLoc.getContig();
             // write the position to the XSV
-            for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(genomeLoc.getStart(), genomeLoc.getEnd(), sampleName)) {
+            // for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(genomeLoc.getStart(), genomeLoc.getEnd(), sampleName)) {
+            for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(
+                    genomeLoc.getStart(),
+                    genomeLoc.getEnd(),
+                    sampleId
+            )) {
                 petWriterCollection.get(contig).getNewLineBuilder().setRow(TSVLineToCreatePet).write();
             }
         }
