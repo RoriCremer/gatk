@@ -56,6 +56,47 @@ public final class BlahVariantWalker extends VariantWalker {
     private String currentContig;
     private List<SimpleInterval> userIntervals;
 
+    public long chromAdjustment = 1000000000000L;
+
+    public enum ChromosomeEnum {
+        CHR1(1),
+        CHR2(2),
+        CHR3(3),
+        CHR4(4),
+        CHR5(5),
+        CHR6(6),
+        CHR7(7),
+        CHR8(8),
+        CHR9(9),
+        CHR10(10),
+        CHR11(11),
+        CHR12(12),
+        CHR13(13),
+        CHR14(14),
+        CHR15(15),
+        CHR16(16),
+        CHR17(17),
+        CHR18(18),
+        CHR19(19),
+        CHR20(20),
+        CHR21(21),
+        CHR22(22),
+        CHRX(23),
+        CHRY(24),
+        CHRM(25);
+
+        int index;
+
+        ChromosomeEnum(int index) {
+            this.index = index;
+        }
+    }
+
+    public long get_location(String chrom, int position) {
+        int chromosomeIndex = ChromosomeEnum.valueOf(chrom.toUpperCase()).index;
+        long adjustedLocation = Long.valueOf(chromosomeIndex) * chromAdjustment + Long.valueOf(position);
+        return adjustedLocation;
+    }
 
     // Inside the parent directory, a directory for each chromosome will be created, with a pet directory and vet directory in each one.
     // Each pet and vet directory will hold all of the pet and vet tsvs for each sample
@@ -114,8 +155,6 @@ public final class BlahVariantWalker extends VariantWalker {
         } catch (final IOException ioe) { // FileNotFoundException e,
             throw new UserException("Could not find sample mapping file");
         }
-
-
 
         // If the metadata directory doesn't exist yet, create it
         parentDirectory = parentOutputDirectory.toPath();
@@ -201,8 +240,6 @@ public final class BlahVariantWalker extends VariantWalker {
 
         final String variantChr = variant.getContig();
 
-
-
         // If this contig directory don't exist yet -- create it
         final String contigDirectoryName = variantChr;
         final Path contigDirectoryPath = parentDirectory.resolve(contigDirectoryName);
@@ -262,7 +299,7 @@ public final class BlahVariantWalker extends VariantWalker {
             // final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(variant);
             int start = variant.getStart();
             final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(
-                    start,
+                    get_location(variantChr, start),
                     variant,
                     sampleId
             );
@@ -297,16 +334,16 @@ public final class BlahVariantWalker extends VariantWalker {
                 if (!firstInterval && !variant.isReferenceBlock()) {
                     // TSVLinesToCreatePet = BlahPetCreation.createSpanDelRows(start, end, variant, sampleName);
                     TSVLinesToCreatePet = BlahPetCreation.createSpanDelRows(
-                            start,
-                            end,
+                            get_location(variantChr, start),
+                            get_location(variantChr, end),
                             variant,
                             sampleId
                     );
                 } else {
                     // TSVLinesToCreatePet = BlahPetCreation.createPositionRows(start, end, variant, sampleName);
                     TSVLinesToCreatePet = BlahPetCreation.createPositionRows(
-                            start,
-                            end,
+                            get_location(variantChr, start),
+                            get_location(variantChr, end),
                             variant,
                             sampleId
                     );
@@ -332,8 +369,8 @@ public final class BlahVariantWalker extends VariantWalker {
             // write the position to the XSV
             // for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(genomeLoc.getStart(), genomeLoc.getEnd(), sampleName)) {
             for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(
-                    genomeLoc.getStart(),
-                    genomeLoc.getEnd(),
+                    get_location(contig, genomeLoc.getStart()),
+                    get_location(contig, genomeLoc.getEnd()),
                     sampleId
             )) {
                 petWriterCollection.get(contig).getNewLineBuilder().setRow(TSVLineToCreatePet).write();
