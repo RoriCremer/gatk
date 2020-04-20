@@ -37,14 +37,14 @@ public final class BlahPetCreation {
 
     }
 
-    public static List<List<String>> createPositionRows(final int start, final int end, final VariantContext variant, final String sampleName) {
+    public static List<List<String>> createPositionRows(final int start, final int end, final VariantContext variant, final String sampleId) {
 
         List<List<String>> rows = new ArrayList<>();
 
         if (!variant.isReferenceBlock()) {
             List<String> row = new ArrayList<>();
             row.add(String.valueOf(start));
-            row.add(sampleName);
+            row.add(sampleId);
             row.add(GQStateEnum.VARIANT.value);
             rows.add(row);
 
@@ -52,7 +52,7 @@ public final class BlahPetCreation {
             for (int i = start + 1 ; i <= end; i++){
                 row = new ArrayList<>();
                 row.add(String.valueOf(i));
-                row.add(sampleName);
+                row.add(sampleId);
                 row.add(GQStateEnum.STAR.value);
                 rows.add(row);
             }
@@ -64,7 +64,7 @@ public final class BlahPetCreation {
                 List<String> row = new ArrayList<>();
 
                 row.add(String.valueOf(position));
-                row.add(sampleName);
+                row.add(sampleId);
                 row.add(state.value);
                 rows.add(row);
             }
