@@ -12,14 +12,21 @@ public class BlahSampleListCreation {
      */
     public enum HeaderFieldEnum {
         sample,
+        sample_id,
         interval_list_blob,
         inferred_state,
     }
 
-    public static List<String> createSampleListRow(String sampleName, String intervalListBlob, BlahPetCreation.GQStateEnum inferredMissingState) {
+    public static List<String> createSampleListRow(
+            String sampleName,
+            String sampleId,
+            String intervalListBlob,
+            BlahPetCreation.GQStateEnum inferredMissingState
+    ) {
 
         List<String> row = new ArrayList<>();
         row.add(sampleName);
+        row.add(sampleId);
         row.add(intervalListBlob);
         if (inferredMissingState == null) {
             row.add("");
