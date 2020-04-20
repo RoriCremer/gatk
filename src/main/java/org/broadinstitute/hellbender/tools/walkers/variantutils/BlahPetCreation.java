@@ -37,7 +37,7 @@ public final class BlahPetCreation {
 
     }
 
-    public static List<List<String>> createPositionRows(final int start, final int end, final VariantContext variant, final String sampleId) {
+    public static List<List<String>> createPositionRows(final long start, final long end, final VariantContext variant, final String sampleId) {
 
         List<List<String>> rows = new ArrayList<>();
 
@@ -49,7 +49,7 @@ public final class BlahPetCreation {
             rows.add(row);
 
             //if variant is variant and has additional positions--must be a deletion: add `*` state
-            for (int i = start + 1 ; i <= end; i++){
+            for (long i = start + 1 ; i <= end; i++){
                 row = new ArrayList<>();
                 row.add(String.valueOf(i));
                 row.add(sampleId);
@@ -60,7 +60,7 @@ public final class BlahPetCreation {
             // TODO check in the tool to make sure it's only one sample
             GQStateEnum state = getGQStateEnum(variant.getGenotype(0).getGQ());
 
-            for (int position = start; position <= end; position++){ // break up ref blocks
+            for (long position = start; position <= end; position++){ // break up ref blocks
                 List<String> row = new ArrayList<>();
 
                 row.add(String.valueOf(position));
@@ -73,14 +73,14 @@ public final class BlahPetCreation {
         return rows;
     }
 
-    public static List<List<String>> createSpanDelRows(final int start, final int end, final VariantContext variant, final String sampleName) {
+    public static List<List<String>> createSpanDelRows(final long start, final long end, final VariantContext variant, final String sampleName) {
         if (variant.isReferenceBlock()){
             throw new IllegalStateException("Cannot create span deletion rows for a reference block");
         }
 
         List<List<String>> rows = new ArrayList<>();
 
-        for (int position = start; position <= end; position++){ // break up ref blocks
+        for (long position = start; position <= end; position++){ // break up ref blocks
             List<String> row = new ArrayList<>();
 
             row.add(String.valueOf(position));
@@ -92,10 +92,10 @@ public final class BlahPetCreation {
         return rows;
     }
 
-    public static List<List<String>> createMissingTSV(int start, int end, String sampleName) {
+    public static List<List<String>> createMissingTSV(long start, long end, String sampleName) {
         List<List<String>> rows = new ArrayList<>();
 
-        for (int position = start; position <= end; position ++){
+        for (long position = start; position <= end; position ++){
             List<String> row = new ArrayList<>();
             row.add(String.valueOf(position));
             row.add(sampleName);

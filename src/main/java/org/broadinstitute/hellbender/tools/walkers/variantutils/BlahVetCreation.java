@@ -267,7 +267,7 @@ public final class BlahVetCreation {
         }
     }
 
-    public static List<String> createVariantRow(final int start, final VariantContext variant, final String sampleId) {
+    public static List<String> createVariantRow(final long start, final VariantContext variant, final String sampleId) {
         List<String> row = new ArrayList<>();
         row.add(String.valueOf(start));
         row.add(sampleId);
