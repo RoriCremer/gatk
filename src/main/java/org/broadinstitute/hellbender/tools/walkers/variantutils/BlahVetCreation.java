@@ -15,11 +15,10 @@ import java.util.stream.Collectors;
 
 public final class BlahVetCreation {
 
-    // GT:AD:DP:GQ:PL:SB       0/1:232,19,0:251:8:8,0,10988,706,11042,11748:143,89,0,19
-
     /**
      * Expected headers for the Variant Table (VET)
-     *     start_position, // req
+     *     position, // req
+     *     sample, // req
      *     reference_bases, // req
      *     alternate_bases_alt, // req
      *     alternate_bases_AS_RAW_MQ, // req
@@ -28,7 +27,6 @@ public final class BlahVetCreation {
      *     alternate_bases_AS_RAW_ReadPosRankSum,
      *     alternate_bases_AS_SB_TABLE, // req
      *     alternate_bases_AS_VarDP, // req
-     *     call_name, // req
      *     call_genotype, // req
      *     call_AD,
      *     call_DP, // Laura says consider removing for now-- so similar to AS_VarDP
@@ -39,14 +37,11 @@ public final class BlahVetCreation {
      *
      */
     public enum HeaderFieldEnum {
-        // TODO is this where the validation step (required vs not) lives  -- fail if there is missing data for a required field
+        // This where the validation step (required vs not) lives  -- fail if there is missing data for a required field
         // and just leave it empty if not required
 
-        position { // Required
-             public String getColumnValue(final VariantContext variant) {
-                 return String.valueOf(variant.getStart());
-            }
-        },
+        position, // Required-- start position for sample
+        sample, // Required-- sample Id for sample
 
         ref { // Required
             public String getColumnValue(final VariantContext variant) {
@@ -195,12 +190,6 @@ public final class BlahVetCreation {
             }
         },
 
-        sample {
-            public String getColumnValue(final VariantContext variant) {
-                return variant.getGenotype(0).getSampleName();
-            }
-        },
-
         call_GT {
             public String getColumnValue(final VariantContext variant) {
                 ArrayList<Integer> allele_indices = new ArrayList<Integer>();
@@ -278,12 +267,14 @@ public final class BlahVetCreation {
         }
     }
 
-
-    public static List<String> createVariantRow(final VariantContext variant) { // TODO  throws UserException ?
+    public static List<String> createVariantRow(final int start, final VariantContext variant, final String sampleId) {
         List<String> row = new ArrayList<>();
-
+        row.add(String.valueOf(start));
+        row.add(sampleId);
         for ( final HeaderFieldEnum fieldEnum : HeaderFieldEnum.values() ) {
-            row.add(fieldEnum.getColumnValue(variant));
+            if (!fieldEnum.equals(HeaderFieldEnum.position) && !fieldEnum.equals(HeaderFieldEnum.sample)) {
+                row.add(fieldEnum.getColumnValue(variant));
+            }
         }
         return row;
     }
