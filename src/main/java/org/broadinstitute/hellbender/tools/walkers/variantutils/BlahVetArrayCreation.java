@@ -27,14 +27,12 @@ public final class BlahVetArrayCreation {
      *
      */
     public enum HeaderFieldEnum {
-        // TODO is this where the validation step (required vs not) lives  -- fail if there is missing data for a required field
+        // This where the validation step (required vs not) lives  -- fail if there is missing data for a required field
         // and just leave it empty if not required
 
-        position { // Required
-             public String getColumnValue(final VariantContext variant) {
-                 return String.valueOf(variant.getStart());
-            }
-        },
+        position, // Required-- start position for sample
+        sample, // Required-- sample Id for sample
+
 
         ref { // Required
             public String getColumnValue(final VariantContext variant) {
@@ -56,12 +54,6 @@ public final class BlahVetArrayCreation {
                     }
                 }
                 return String.join(VCFConstants.INFO_FIELD_ARRAY_SEPARATOR, outList);
-            }
-        },
-
-        sample {
-            public String getColumnValue(final VariantContext variant) {
-                return variant.getGenotype(0).getSampleName();
             }
         },
 
@@ -110,13 +102,14 @@ public final class BlahVetArrayCreation {
         }
     }
 
-
-    public static List<String> createVariantRow(final VariantContext variant) { // TODO  throws UserException ?
+    public static List<String> createVariantRow(final long start, final VariantContext variant, final String sampleId) {
         List<String> row = new ArrayList<>();
-
+        row.add(String.valueOf(start));
+        row.add(sampleId);
         for ( final HeaderFieldEnum fieldEnum : HeaderFieldEnum.values() ) {
-            row.add(fieldEnum.getColumnValue(variant));
-        }
+            if (!fieldEnum.equals(HeaderFieldEnum.position) && !fieldEnum.equals(HeaderFieldEnum.sample)) {
+                row.add(fieldEnum.getColumnValue(variant));
+            }        }
         return row;
     }
 

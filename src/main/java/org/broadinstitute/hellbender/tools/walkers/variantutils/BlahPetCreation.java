@@ -74,7 +74,7 @@ public final class BlahPetCreation {
         return rows;
     }
 
-    public static List<List<String>> createArrayPositionRows(final int start, final int end, final VariantContext variant, final String sampleName) {
+    public static List<List<String>> createArrayPositionRows(final long start, final long end, final VariantContext variant, final String sampleName) {
 
         List<List<String>> rows = new ArrayList<>();
 

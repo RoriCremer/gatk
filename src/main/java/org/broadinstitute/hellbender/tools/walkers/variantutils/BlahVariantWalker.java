@@ -315,7 +315,7 @@ public final class BlahVariantWalker extends VariantWalker {
                     allele_indices.add(GATKVariantContextUtils.indexOfAllele(variant, allele, true, true, true  ));
                 }
                 String GT = variant.getGenotype(0).isPhased() ? org.apache.commons.lang.StringUtils.join(allele_indices, VCFConstants.PHASED) : org.apache.commons.lang.StringUtils.join(allele_indices, VCFConstants.UNPHASED) ;
-                if (GT.equals("0/0")) { // TODO is this too hard coded?
+                if (GT.equals("0/0")) { // TODO is this too hard coded? Also note the shortcuts taken for the createArrayPositionRows --- no walking to the end or GQ state other than Unknown
                     List<List<String>> TSVLinesToCreatePet;
                     TSVLinesToCreatePet = BlahPetCreation.createArrayPositionRows(get_location(variantChr, start), get_location(variantChr, end), variant, sampleId);
 
@@ -323,10 +323,12 @@ public final class BlahVariantWalker extends VariantWalker {
                         final SimpleXSVWriter petWriter = petWriterCollection.get(variantChr);
                         petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
                     }
-
-
                 } else {
-                    final List<String> TSVLineToCreateVet = BlahVetArrayCreation.createVariantRow(variant); // TODO this must be updated for chr adjustment
+                    final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(
+                            get_location(variantChr, start),
+                            variant,
+                            sampleId
+                    );
 
                     // write the variant to the XSV
                     SimpleXSVWriter.LineBuilder vetLine = vetWriter.getNewLineBuilder();
