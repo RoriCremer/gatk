@@ -44,8 +44,8 @@ public final class BlahVariantWalker extends VariantWalker {
 
     private final char SEPARATOR = '\t';
     private final String FILETYPE = ".tsv";
-    private HashMap<String, SimpleXSVWriter> vetWriterCollection = new HashMap<>(23);
-    private HashMap<String, SimpleXSVWriter> petWriterCollection = new HashMap<>(23);
+    private HashMap<String, SimpleXSVWriter> vetWriterCollection = new HashMap<>(26);
+    private HashMap<String, SimpleXSVWriter> petWriterCollection = new HashMap<>(26);
     private SimpleXSVWriter sampleMetadataWriter = null;
 
     private GenomeLocSortedSet intervalArgumentGenomeLocSortedSet;
@@ -114,7 +114,6 @@ public final class BlahVariantWalker extends VariantWalker {
             optional = true)
     public String gqStateToIgnore = "SIXTY";
 
-    // TODO add this new arguement and also this
     @Argument(fullName = "sample-name-mapping",
             shortName = "SNM",
             doc = "Sample name to sample id mapping")
@@ -175,6 +174,7 @@ public final class BlahVariantWalker extends VariantWalker {
 
         userIntervals = intervalArgumentCollection.getIntervals(seqDictionary);
 
+        // To set up the missing positions
         final GenomeLocSortedSet genomeLocSortedSet = new GenomeLocSortedSet(new GenomeLocParser(seqDictionary));
         intervalArgumentGenomeLocSortedSet = GenomeLocSortedSet.createSetFromList(genomeLocSortedSet.getGenomeLocParser(), IntervalUtils.genomeLocsFromLocatables(genomeLocSortedSet.getGenomeLocParser(), intervalArgumentCollection.getIntervals(seqDictionary)));
         coverageLocSortedSet = new GenomeLocSortedSet(new GenomeLocParser(seqDictionary));
@@ -296,7 +296,6 @@ public final class BlahVariantWalker extends VariantWalker {
 
         // create VET output
         if (!variant.isReferenceBlock()) {
-            // final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(variant);
             int start = variant.getStart();
             final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(
                     get_location(variantChr, start),
@@ -332,7 +331,6 @@ public final class BlahVariantWalker extends VariantWalker {
                 List<List<String>> TSVLinesToCreatePet;
                 // handle deletions that span across multiple intervals
                 if (!firstInterval && !variant.isReferenceBlock()) {
-                    // TSVLinesToCreatePet = BlahPetCreation.createSpanDelRows(start, end, variant, sampleName);
                     TSVLinesToCreatePet = BlahPetCreation.createSpanDelRows(
                             get_location(variantChr, start),
                             get_location(variantChr, end),
@@ -340,7 +338,6 @@ public final class BlahVariantWalker extends VariantWalker {
                             sampleId
                     );
                 } else {
-                    // TSVLinesToCreatePet = BlahPetCreation.createPositionRows(start, end, variant, sampleName);
                     TSVLinesToCreatePet = BlahPetCreation.createPositionRows(
                             get_location(variantChr, start),
                             get_location(variantChr, end),
@@ -367,7 +364,6 @@ public final class BlahVariantWalker extends VariantWalker {
         for (GenomeLoc genomeLoc : uncoveredIntervals) {
             final String contig = genomeLoc.getContig();
             // write the position to the XSV
-            // for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(genomeLoc.getStart(), genomeLoc.getEnd(), sampleName)) {
             for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(
                     get_location(contig, genomeLoc.getStart()),
                     get_location(contig, genomeLoc.getEnd()),
