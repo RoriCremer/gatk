@@ -338,7 +338,7 @@ public final class BlahVariantWalker extends VariantWalker {
 \                        petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
                     }
                 } else {
-                    final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(
+                    final List<String> TSVLineToCreateVet = BlahVetArrayCreation.createVariantRow(
                             get_location(variantChr, start),
                             variant,
                             sampleId
