@@ -30,12 +30,11 @@ import java.nio.file.Path;
 import java.io.File;
 
 /**
- * Example/toy program that shows how to implement the VariantWalker interface. Prints supplied variants
- * along with overlapping reads/reference bases/variants (if present).
+ * Ingest variant walker
  */
 @CommandLineProgramProperties(
-        summary = "Example tool that prints variants supplied to the specified output file (stdout if none provided), along with overlapping reads/reference bases/variants (if provided)",
-        oneLineSummary = "Example tool that prints variants with optional contextual data",
+        summary = "Ingest tool for the Joint Genotyping in Big Query project",
+        oneLineSummary = "Ingest tool for BQJG",
         programGroup = ExampleProgramGroup.class,
         omitFromCommandLine = true
 )
@@ -44,8 +43,6 @@ public final class IngestVariantWalker extends VariantWalker {
 
     private final char SEPARATOR = '\t';
     private final String FILETYPE = ".tsv";
-    //private HashMap<String, SimpleXSVWriter> vetWriterCollection = new HashMap<>(26);
-    //private HashMap<String, SimpleXSVWriter> petWriterCollection = new HashMap<>(26);
     private SimpleXSVWriter vetWriter = null;
     private SimpleXSVWriter petWriter = null;
     private SimpleXSVWriter sampleMetadataWriter = null;
@@ -55,7 +52,6 @@ public final class IngestVariantWalker extends VariantWalker {
     private SimpleInterval previousInterval;
     private String sampleName;
     private String sampleId;
-    private String currentContig;
     private List<SimpleInterval> userIntervals;
 
     public long chromAdjustment = 1000000000000L;
@@ -323,7 +319,7 @@ public final class IngestVariantWalker extends VariantWalker {
             // check to see if this is an array
             if(isArray) {
                 // check if the array variant is homref 0/0 and if it is then add it to the PET as an unknown state
-                if (variant.getGenotype(0).isHomRef()) { // TODO is this too hard coded? Also note the shortcuts taken for the createArrayPositionRows --- no walking to the end or GQ state other than Unknown
+                if (variant.getGenotype(0).isHomRef()) { // TODO Note the shortcuts taken for the createArrayPositionRows --- no walking to the end or GQ state other than Unknown
                     List<List<String>> TSVLinesToCreatePet;
                     TSVLinesToCreatePet = IngestPetCreation.createArrayPositionRows(get_location(variantChr, start), get_location(variantChr, end), variant, sampleId);
 
