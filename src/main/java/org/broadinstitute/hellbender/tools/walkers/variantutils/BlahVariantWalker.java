@@ -47,8 +47,10 @@ public final class BlahVariantWalker extends VariantWalker {
 
     private final char SEPARATOR = '\t';
     private final String FILETYPE = ".tsv";
-    private HashMap<String, SimpleXSVWriter> vetWriterCollection = new HashMap<>(26);
-    private HashMap<String, SimpleXSVWriter> petWriterCollection = new HashMap<>(26);
+    //private HashMap<String, SimpleXSVWriter> vetWriterCollection = new HashMap<>(26);
+    //private HashMap<String, SimpleXSVWriter> petWriterCollection = new HashMap<>(26);
+    private SimpleXSVWriter vetWriter = null;
+    private SimpleXSVWriter petWriter = null;
     private SimpleXSVWriter sampleMetadataWriter = null;
 
     private GenomeLocSortedSet intervalArgumentGenomeLocSortedSet;
@@ -143,6 +145,8 @@ public final class BlahVariantWalker extends VariantWalker {
             throw new UserException("This tool can only be run on single sample vcfs");
         }
         sampleName = samples.getSample(0);
+        //  Because BigQuery only supports partitioning based on timestamp or integer,
+        // sample names will be remapped into sample_id integers
         try {
             BufferedReader br = new BufferedReader(new FileReader(sampleMap));
 
@@ -249,29 +253,37 @@ public final class BlahVariantWalker extends VariantWalker {
 
         final String variantChr = variant.getContig();
 
-        // If this contig directory don't exist yet -- create it
+/*        // If this contig directory don't exist yet -- create it
         final String contigDirectoryName = variantChr;
         final Path contigDirectoryPath = parentDirectory.resolve(contigDirectoryName);
         final File contigDirectory = new File(contigDirectoryPath.toString());
         if (! contigDirectory.exists()){
             contigDirectory.mkdir();
+        }*/
+
+
+        // If this sample set directory doesn't exist yet -- create it
+        final String sampleDirectoryName = sampleSet;
+        final Path sampleDirectoryPath = parentDirectory.resolve(sampleDirectoryName);
+        final File sampleDirectory = new File(sampleDirectoryPath.toString());
+        if (! sampleDirectory.exists()){
+            sampleDirectory.mkdir();
         }
+
         // If the pet directory inside it doesn't exist yet -- create it
         final String petDirectoryName = "pet";
-        final Path petDirectoryPath = contigDirectoryPath.resolve(petDirectoryName);
+        final Path petDirectoryPath = sampleDirectoryPath.resolve(petDirectoryName);
         final File petDirectory = new File(petDirectoryPath.toString());
         if (! petDirectory.exists()){
             petDirectory.mkdir();
         }
         // If the vet directory inside it doesn't exist yet -- create it
         final String vetDirectoryName = "vet";
-        final Path vetDirectoryPath = contigDirectoryPath.resolve(vetDirectoryName);
+        final Path vetDirectoryPath = sampleDirectoryPath.resolve(vetDirectoryName);
         final File vetDirectory = new File(vetDirectoryPath.toString());
         if (! vetDirectory.exists()){
             vetDirectory.mkdir();
         }
-
-
         if (currentContig != variantChr ) {// if the pet & vet tsvs don't exist yet -- create them
             try {
                 // Create a pet file to go into the pet dir for _this_ sample
@@ -281,7 +293,8 @@ public final class BlahVariantWalker extends VariantWalker {
                 List<String> petHeader = BlahPetCreation.getHeaders();
                 final SimpleXSVWriter petWriter = new SimpleXSVWriter(petOutputPath, SEPARATOR);
                 petWriter.setHeaderLine(petHeader);
-                petWriterCollection.put(variantChr, petWriter);
+                // TODO is this where I created the contig related bug? YES if there's no variants in the chr in the interval list
+                // petWriterCollection.put(variantChr, petWriter);
             } catch (final IOException e) {
                 throw new UserException("Could not create pet outputs", e);
             }
@@ -294,14 +307,14 @@ public final class BlahVariantWalker extends VariantWalker {
                 List<String> vetHeader = isArray ?  BlahVetArrayCreation.getHeaders(): BlahVetCreation.getHeaders();
                 final SimpleXSVWriter vetWriter = new SimpleXSVWriter(vetOutputPath, SEPARATOR);
                 vetWriter.setHeaderLine(vetHeader);
-                vetWriterCollection.put(variantChr, vetWriter);
+                // vetWriterCollection.put(variantChr, vetWriter);
             } catch (final IOException e) {
                 throw new UserException("Could not create vet outputs", e);
             }
             currentContig = variantChr;
         }
 
-        final SimpleXSVWriter vetWriter = vetWriterCollection.get(variantChr);
+        //final SimpleXSVWriter vetWriter = vetWriterCollection.get(variantChr);
 
         // create VET output
         if (!variant.isReferenceBlock()) {
@@ -320,7 +333,7 @@ public final class BlahVariantWalker extends VariantWalker {
                     TSVLinesToCreatePet = BlahPetCreation.createArrayPositionRows(get_location(variantChr, start), get_location(variantChr, end), variant, sampleId);
 
                     for (List<String> TSVLineToCreatePet : TSVLinesToCreatePet) {
-                        final SimpleXSVWriter petWriter = petWriterCollection.get(variantChr);
+                        //final SimpleXSVWriter petWriter = petWriterCollection.get(variantChr);
                         petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
                     }
                 } else {
@@ -341,7 +354,7 @@ public final class BlahVariantWalker extends VariantWalker {
 
                     // write the position to the XSV
                     for (List<String> TSVLineToCreatePet : TSVLinesToCreatePet) {
-                        final SimpleXSVWriter petWriter = petWriterCollection.get(variantChr);
+                        // final SimpleXSVWriter petWriter = petWriterCollection.get(variantChr);
                         petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
                     }
                 }
@@ -401,7 +414,7 @@ public final class BlahVariantWalker extends VariantWalker {
 
                 // write the position to the XSV
                 for (List<String> TSVLineToCreatePet : TSVLinesToCreatePet) {
-                    final SimpleXSVWriter petWriter = petWriterCollection.get(variantChr);
+                    //final SimpleXSVWriter petWriter = petWriterCollection.get(variantChr);
                     petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
                 }
             }
@@ -423,7 +436,7 @@ public final class BlahVariantWalker extends VariantWalker {
                     get_location(contig, genomeLoc.getEnd()),
                     sampleId
             )) {
-                petWriterCollection.get(contig).getNewLineBuilder().setRow(TSVLineToCreatePet).write();
+                petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
             }
         }
         return 0;
@@ -431,22 +444,18 @@ public final class BlahVariantWalker extends VariantWalker {
 
     @Override
     public void closeTool() {
-        for (SimpleXSVWriter writer:vetWriterCollection.values()) {
-            if (writer != null) {
-                try {
-                    writer.close();
-                } catch (final Exception e) {
-                    throw new IllegalArgumentException("Couldn't close VET writer", e);
-                }
+        if (vetWriter != null) {
+            try {
+                vetWriter.close();
+            } catch (final Exception e) {
+                throw new IllegalArgumentException("Couldn't close VET writer", e);
             }
         }
-        for (SimpleXSVWriter writer:petWriterCollection.values()) {
-            if (writer != null) {
-                try {
-                    writer.close();
-                } catch (final Exception e) {
-                    throw new IllegalArgumentException("Couldn't close PET writer", e);
-                }
+        if (petWriter != null) {
+            try {
+                petWriter.close();
+            } catch (final Exception e) {
+                throw new IllegalArgumentException("Couldn't close PET writer", e);
             }
         }
         if (sampleMetadataWriter != null) {
