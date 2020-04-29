@@ -1,4 +1,4 @@
-package org.broadinstitute.hellbender.tools.walkers.variantutils;
+package org.broadinstitute.hellbender.tools.variantdb;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
@@ -13,7 +13,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public final class BlahVetCreation {
+public final class IngestVetExomeCreation {
 
     /**
      * Expected headers for the Variant Table (VET)

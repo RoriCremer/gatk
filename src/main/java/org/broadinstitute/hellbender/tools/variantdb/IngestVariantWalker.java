@@ -1,9 +1,8 @@
-package org.broadinstitute.hellbender.tools.walkers.variantutils;
+package org.broadinstitute.hellbender.tools.variantdb;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -17,12 +16,10 @@ import org.broadinstitute.hellbender.engine.ReadsContext;
 import org.broadinstitute.hellbender.engine.ReferenceContext;
 import org.broadinstitute.hellbender.engine.VariantWalker;
 import org.broadinstitute.hellbender.exceptions.UserException;
-import org.broadinstitute.hellbender.tools.variantdb.BlahVetArrayCreation;
 import org.broadinstitute.hellbender.utils.*;
 import org.broadinstitute.hellbender.utils.genotyper.IndexedSampleList;
 import org.broadinstitute.hellbender.utils.genotyper.SampleList;
 import org.broadinstitute.hellbender.utils.tsv.SimpleXSVWriter;
-import org.broadinstitute.hellbender.utils.variant.GATKVariantContextUtils;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -42,8 +39,8 @@ import java.io.File;
         programGroup = ExampleProgramGroup.class,
         omitFromCommandLine = true
 )
-public final class BlahVariantWalker extends VariantWalker {
-    static final Logger logger = LogManager.getLogger(BlahVariantWalker.class);
+public final class IngestVariantWalker extends VariantWalker {
+    static final Logger logger = LogManager.getLogger(IngestVariantWalker.class);
 
     private final char SEPARATOR = '\t';
     private final String FILETYPE = ".tsv";
@@ -127,7 +124,7 @@ public final class BlahVariantWalker extends VariantWalker {
             shortName = "IG",
             doc = "Ref Block GQ band to ignore, bands of 10 e.g 0-9 get combined to 0, 20-29 get combined to 20",
             optional = true)
-    public String gqStateToIgnore = "SIXTY";
+    public String gqStateToIgnore = "SIXTY";  // TODO -- this will be an enum from the PetCreation: GQStateEnum
 
     @Argument(fullName = "sample-name-mapping",
             shortName = "SNM",
@@ -138,7 +135,8 @@ public final class BlahVariantWalker extends VariantWalker {
             shortName = "IA",
             doc = "Flag if the input vcf is an array",
             optional = true)
-    public Boolean isArray = false;
+    public Boolean isArray = false; // TODO -- this will be an enum called MODE
+
 
     @Override
     public boolean requiresIntervals() {
@@ -222,7 +220,7 @@ public final class BlahVariantWalker extends VariantWalker {
             final String petOutputName = sampleName + petDirectoryName + FILETYPE;
             final Path petOutputPath = petDirectoryPath.resolve(petOutputName);
             // write header to it
-            List<String> petHeader = BlahPetCreation.getHeaders();
+            List<String> petHeader = IngestPetCreation.getHeaders();
             petWriter = new SimpleXSVWriter(petOutputPath, SEPARATOR);
             petWriter.setHeaderLine(petHeader);
         } catch (final IOException e) {
@@ -234,7 +232,7 @@ public final class BlahVariantWalker extends VariantWalker {
             final String vetOutputName = sampleName + vetDirectoryName + FILETYPE;
             final Path vetOutputPath = vetDirectoryPath.resolve(vetOutputName);
             // write header to it
-            List<String> vetHeader = isArray ?  BlahVetArrayCreation.getHeaders(): BlahVetCreation.getHeaders();
+            List<String> vetHeader = isArray ?  IngestVetArrayCreation.getHeaders(): IngestVetExomeCreation.getHeaders();
             vetWriter = new SimpleXSVWriter(vetOutputPath, SEPARATOR);
             vetWriter.setHeaderLine(vetHeader);
         } catch (final IOException e) {
@@ -247,7 +245,7 @@ public final class BlahVariantWalker extends VariantWalker {
             final String sampleMetadataName = sampleName + metadataDirectoryName+ FILETYPE;
             final Path sampleMetadataOutputPath = metadataDirectoryPath.resolve(sampleMetadataName);
             // write header to it
-            List<String> sampleListHeader = BlahSampleListCreation.getHeaders();
+            List<String> sampleListHeader = IngestSampleListCreation.getHeaders();
             sampleMetadataWriter = new SimpleXSVWriter(sampleMetadataOutputPath, SEPARATOR);
             sampleMetadataWriter.setHeaderLine(sampleListHeader);
             // write values
@@ -255,11 +253,11 @@ public final class BlahVariantWalker extends VariantWalker {
                     .collect(Collectors.toList());
             String intervalListBlob = StringUtils.join(intervalList, ", ");
             String intervalListMd5 = Utils.calcMD5(intervalListBlob);
-            final List<String> TSVLineToCreateSampleMetadata = BlahSampleListCreation.createSampleListRow(
+            final List<String> TSVLineToCreateSampleMetadata = IngestSampleListCreation.createSampleListRow(
                     sampleName,
                     sampleId,
                     intervalListMd5,
-                    BlahPetCreation.GQStateEnum.valueOf(gqStateToIgnore));
+                    IngestPetCreation.GQStateEnum.valueOf(gqStateToIgnore));
             sampleMetadataWriter.getNewLineBuilder().setRow(TSVLineToCreateSampleMetadata).write();
 
         } catch (final IOException e) {
@@ -325,20 +323,15 @@ public final class BlahVariantWalker extends VariantWalker {
             // check to see if this is an array
             if(isArray) {
                 // check if the array variant is homref 0/0 and if it is then add it to the PET as an unknown state
-                ArrayList<Integer> allele_indices = new ArrayList<Integer>();
-                for (Allele allele : variant.getGenotype(0).getAlleles()){
-                    allele_indices.add(GATKVariantContextUtils.indexOfAllele(variant, allele, true, true, true  ));
-                }
-                String GT = variant.getGenotype(0).isPhased() ? org.apache.commons.lang.StringUtils.join(allele_indices, VCFConstants.PHASED) : org.apache.commons.lang.StringUtils.join(allele_indices, VCFConstants.UNPHASED) ;
-                if (GT.equals("0/0")) { // TODO is this too hard coded? Also note the shortcuts taken for the createArrayPositionRows --- no walking to the end or GQ state other than Unknown
+                if (variant.getGenotype(0).isHomRef()) { // TODO is this too hard coded? Also note the shortcuts taken for the createArrayPositionRows --- no walking to the end or GQ state other than Unknown
                     List<List<String>> TSVLinesToCreatePet;
-                    TSVLinesToCreatePet = BlahPetCreation.createArrayPositionRows(get_location(variantChr, start), get_location(variantChr, end), variant, sampleId);
+                    TSVLinesToCreatePet = IngestPetCreation.createArrayPositionRows(get_location(variantChr, start), get_location(variantChr, end), variant, sampleId);
 
                     for (List<String> TSVLineToCreatePet : TSVLinesToCreatePet) {
-\                        petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
+                        petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
                     }
                 } else {
-                    final List<String> TSVLineToCreateVet = BlahVetArrayCreation.createVariantRow(
+                    final List<String> TSVLineToCreateVet = IngestVetArrayCreation.createVariantRow(
                             get_location(variantChr, start),
                             variant,
                             sampleId
@@ -351,7 +344,7 @@ public final class BlahVariantWalker extends VariantWalker {
 
                     // also add to PET
                     List<List<String>> TSVLinesToCreatePet;
-                    TSVLinesToCreatePet = BlahPetCreation.createPositionRows(get_location(variantChr, start), get_location(variantChr, end), variant, sampleId);
+                    TSVLinesToCreatePet = IngestPetCreation.createPositionRows(get_location(variantChr, start), get_location(variantChr, end), variant, sampleId);
 
                     // write the position to the XSV
                     for (List<String> TSVLineToCreatePet : TSVLinesToCreatePet) {
@@ -359,11 +352,11 @@ public final class BlahVariantWalker extends VariantWalker {
                     }
                 }
 
-                // TODO do I want to return here so there is there's no additional work putting together the genomeloc etc?
+                // Return here so there is there's no additional work putting together the genomeloc etc?
                 return;
             }
             // else, it must be an exome or genome!
-            final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(
+            final List<String> TSVLineToCreateVet = IngestVetExomeCreation.createVariantRow(
                     get_location(variantChr, start),
                     variant,
                     sampleId
@@ -383,13 +376,13 @@ public final class BlahVariantWalker extends VariantWalker {
             // TODO throw an error if start and end are the same?
 
             // for each of the reference blocks with the GQ to discard, keep track of the positions for the missing insertions
-            if (BlahPetCreation.getGQStateEnum(variant.getGenotype(0).getGQ()).equals(BlahPetCreation.GQStateEnum.valueOf(gqStateToIgnore))) {
+            if (IngestPetCreation.getGQStateEnum(variant.getGenotype(0).getGQ()).equals(IngestPetCreation.GQStateEnum.valueOf(gqStateToIgnore))) {
                 // add interval to "covered" intervals
                 setCoveredInterval(variantChr, start, end);
             }
 
             // create PET output if the reference block's GQ is not the one to discard or its a variant
-            if (!variant.isReferenceBlock() || !BlahPetCreation.getGQStateEnum(variant.getGenotype(0).getGQ()).equals(BlahPetCreation.GQStateEnum.valueOf(gqStateToIgnore))) {
+            if (!variant.isReferenceBlock() || !IngestPetCreation.getGQStateEnum(variant.getGenotype(0).getGQ()).equals(IngestPetCreation.GQStateEnum.valueOf(gqStateToIgnore))) {
 
                 // add interval to "covered" intervals
                 setCoveredInterval(variantChr, start, end);
@@ -397,14 +390,14 @@ public final class BlahVariantWalker extends VariantWalker {
                 List<List<String>> TSVLinesToCreatePet;
                 // handle deletions that span across multiple intervals
                 if (!firstInterval && !variant.isReferenceBlock()) {
-                    TSVLinesToCreatePet = BlahPetCreation.createSpanDelRows(
+                    TSVLinesToCreatePet = IngestPetCreation.createSpanDelRows(
                             get_location(variantChr, start),
                             get_location(variantChr, end),
                             variant,
                             sampleId
                     );
                 } else {
-                    TSVLinesToCreatePet = BlahPetCreation.createPositionRows(
+                    TSVLinesToCreatePet = IngestPetCreation.createPositionRows(
                             get_location(variantChr, start),
                             get_location(variantChr, end),
                             variant,
@@ -430,7 +423,7 @@ public final class BlahVariantWalker extends VariantWalker {
         for (GenomeLoc genomeLoc : uncoveredIntervals) {
             final String contig = genomeLoc.getContig();
             // write the position to the XSV
-            for (List<String> TSVLineToCreatePet : BlahPetCreation.createMissingTSV(
+            for (List<String> TSVLineToCreatePet : IngestPetCreation.createMissingTSV(
                     get_location(contig, genomeLoc.getStart()),
                     get_location(contig, genomeLoc.getEnd()),
                     sampleId

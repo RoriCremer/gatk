@@ -1,4 +1,4 @@
-package org.broadinstitute.hellbender.tools.walkers.variantutils;
+package org.broadinstitute.hellbender.tools.variantdb;
 
 import com.google.common.collect.Lists;
 import htsjdk.variant.variantcontext.Allele;
@@ -9,6 +9,8 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFConstants;
 import org.apache.commons.lang.StringUtils;
 import org.broadinstitute.hellbender.CommandLineProgramTest;
+import org.broadinstitute.hellbender.tools.variantdb.IngestPetCreation;
+import org.broadinstitute.hellbender.tools.variantdb.IngestVetExomeCreation;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
 import org.broadinstitute.hellbender.utils.variant.GATKVariantContextUtils;
 import org.testng.Assert;
@@ -18,7 +20,6 @@ import org.testng.annotations.Test;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,10 +27,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import static org.broadinstitute.hellbender.utils.io.IOUtils.createTempFileInDirectory;
-
 @Test(groups = {"variantcalling"})
-public class BlahVariantWalkerIntegrationTest extends CommandLineProgramTest {
+public class IngestVariantWalkerIntegrationTest extends CommandLineProgramTest {
     private static String TEST_RESOURCES_PATH = "src/test/resources/org/broadinstitute/hellbender/tools/walkers/variantutils/ReblockGVCF/NA12878/";
     private static final File truthVET = new File(TEST_RESOURCES_PATH + "vet/vet.tsv");
     private static final File truthPET = new File(TEST_RESOURCES_PATH + "pet/pet.tsv");
@@ -41,6 +40,7 @@ public class BlahVariantWalkerIntegrationTest extends CommandLineProgramTest {
     private static final int PET_COL_COUNT = 3;
 
     private static final String SAMPLE_NAME = "rose";
+    private static final String SAMPLE_ID = "1";
     private static final Allele ARef = Allele.create("A", true);
     private static final Allele C = Allele.create("C");
     private static final Allele NON_REF = Allele.NON_REF_ALLELE;
@@ -166,19 +166,19 @@ public class BlahVariantWalkerIntegrationTest extends CommandLineProgramTest {
                 //{truthPET, truthVET, inputVCF, inputINTERVAL_LIST, Optional.ofNullable("SIXTY"), true},
                 {truthPET, truthVET, inputVCF, inputINTERVAL_LIST, Optional.ofNullable("THIRTY"), true},
                // {truthPET, truthVET, inputVCF, inputINTERVAL_LIST, null, false},
-                //{truthPET, truthVET, inputVCF, inputINTERVAL_LIST, BlahPetCreation.GQStateEnum.SIXTY, false},
+                //{truthPET, truthVET, inputVCF, inputINTERVAL_LIST, IngestPetCreation.GQStateEnum.SIXTY, false},
         };
     }
 
     @Test
     public void testPetCreation() throws Exception {
         // start with a variant
-        final List<List<String>> positionExpandedVariantRows = BlahPetCreation.createPositionRows(1, 1, VARIANT, SAMPLE_NAME);
+        final List<List<String>> positionExpandedVariantRows = IngestPetCreation.createPositionRows(1, 1, VARIANT, SAMPLE_NAME);
 
         final List<String> positionExpandedVariantRowTruth = new ArrayList<>();
         positionExpandedVariantRowTruth.add(String.valueOf(1));
         positionExpandedVariantRowTruth.add(SAMPLE_NAME);
-        positionExpandedVariantRowTruth.add(BlahPetCreation.GQStateEnum.VARIANT.value);
+        positionExpandedVariantRowTruth.add(IngestPetCreation.GQStateEnum.VARIANT.value);
 
         final List<List<String>> positionExpandedRowsTruth = new ArrayList<>();
         positionExpandedRowsTruth.add(positionExpandedVariantRowTruth);
@@ -186,11 +186,11 @@ public class BlahVariantWalkerIntegrationTest extends CommandLineProgramTest {
         Assert.assertEquals(positionExpandedVariantRows, positionExpandedRowsTruth);
 
         // TODO then add some GQ30 or whatever block
-        final List<List<String>> positionExpandedRefRows = BlahPetCreation.createPositionRows(1, 1, REF_VARIANT, SAMPLE_NAME);
+        final List<List<String>> positionExpandedRefRows = IngestPetCreation.createPositionRows(1, 1, REF_VARIANT, SAMPLE_NAME);
         final List<String> positionExpandedRefRowTruth = new ArrayList<>();
         positionExpandedRefRowTruth.add(String.valueOf(1));
         positionExpandedRefRowTruth.add(SAMPLE_NAME);
-        positionExpandedRefRowTruth.add(BlahPetCreation.GQStateEnum.THIRTY.value);
+        positionExpandedRefRowTruth.add(IngestPetCreation.GQStateEnum.THIRTY.value);
 
         final List<List<String>> positionExpandedRefRowsTruth = new ArrayList<>();
         positionExpandedRefRowsTruth.add(positionExpandedRefRowTruth);
@@ -203,13 +203,14 @@ public class BlahVariantWalkerIntegrationTest extends CommandLineProgramTest {
         Assert.assertEquals(positionExpandedRefRows, positionExpandedRefRowsTruth);
 
 
-        // BlahPetCreation.createSpanDelRows();
+        // IngestPetCreation.createSpanDelRows();
 
     }
 
     @Test
     public void testVetCreation() throws Exception {
-        final List<String> variantRow = BlahVetCreation.createVariantRow(VARIANT);
+        // final List<String> variantRow = IngestVetExomeCreation.createVariantRow(VARIANT);
+        final List<String> variantRow = IngestVetExomeCreation.createVariantRow(1, VARIANT, SAMPLE_ID);
         final List<String> variantRowTruth = new ArrayList<>();
         variantRowTruth.add(String.valueOf(VARIANT.getStart()));
         variantRowTruth.add(VARIANT.getReference().getBaseString());
@@ -238,6 +239,6 @@ public class BlahVariantWalkerIntegrationTest extends CommandLineProgramTest {
         Assert.assertEquals(variantRow, variantRowTruth);
 
         // make sure if there is missing req field that we throw an error
-        Assert.assertThrows(() -> BlahVetCreation.createVariantRow(VARIANT_MISSING_REQUIRED));
+        Assert.assertThrows(() -> IngestVetExomeCreation.createVariantRow(1, VARIANT_MISSING_REQUIRED, SAMPLE_ID));
     }
 }

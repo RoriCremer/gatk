@@ -1,4 +1,4 @@
-package org.broadinstitute.hellbender.tools.walkers.variantutils;
+package org.broadinstitute.hellbender.tools.variantdb;
 
 import htsjdk.variant.variantcontext.VariantContext;
 import java.util.ArrayList;
@@ -6,7 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public final class BlahPetCreation {
+public final class IngestPetCreation {
 
     /**
      * Expected headers for the Position Table (PET)

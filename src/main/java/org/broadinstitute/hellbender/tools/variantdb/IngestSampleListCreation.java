@@ -1,11 +1,11 @@
-package org.broadinstitute.hellbender.tools.walkers.variantutils;
+package org.broadinstitute.hellbender.tools.variantdb;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class BlahSampleListCreation {
+public class IngestSampleListCreation {
 
     /**
      * Expected headers for the Position Table (PET)
@@ -21,7 +21,7 @@ public class BlahSampleListCreation {
             String sampleName,
             String sampleId,
             String intervalListBlob,
-            BlahPetCreation.GQStateEnum inferredMissingState
+            IngestPetCreation.GQStateEnum inferredMissingState
     ) {
 
         List<String> row = new ArrayList<>();
@@ -38,6 +38,6 @@ public class BlahSampleListCreation {
     }
 
     public static List<String> getHeaders() {
-        return Arrays.stream(BlahSampleListCreation.HeaderFieldEnum.values()).map(String::valueOf).collect(Collectors.toList());
+        return Arrays.stream(IngestSampleListCreation.HeaderFieldEnum.values()).map(String::valueOf).collect(Collectors.toList());
     }
 }
