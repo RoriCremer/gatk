@@ -1,4 +1,4 @@
-package org.broadinstitute.hellbender.tools.walkers.variantutils;
+package org.broadinstitute.hellbender.tools.variantdb;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
@@ -11,14 +11,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public final class BlahVetArrayCreation {
+public final class IngestVetArrayCreation {
 
     /**
      * Expected headers for the Variant Table (VET)
-     *     start_position, // req
+     *     position, // req
+     *     sample, // req
      *     reference_bases, // req
      *     alternate_bases_alt, // req
-     *     call_name, // req
      *     call_genotype, // req
      *
      *     IGC // IGC < --- instead of the GQ
