@@ -2,7 +2,6 @@ package org.broadinstitute.hellbender.tools.walkers.variantutils;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.variantcontext.Allele;
-import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
@@ -18,6 +17,7 @@ import org.broadinstitute.hellbender.engine.ReadsContext;
 import org.broadinstitute.hellbender.engine.ReferenceContext;
 import org.broadinstitute.hellbender.engine.VariantWalker;
 import org.broadinstitute.hellbender.exceptions.UserException;
+import org.broadinstitute.hellbender.tools.variantdb.BlahVetArrayCreation;
 import org.broadinstitute.hellbender.utils.*;
 import org.broadinstitute.hellbender.utils.genotyper.IndexedSampleList;
 import org.broadinstitute.hellbender.utils.genotyper.SampleList;
@@ -103,6 +103,16 @@ public final class BlahVariantWalker extends VariantWalker {
         return adjustedLocation;
     }
 
+    // To determine which directory (and ultimately table) the sample's data will go into
+    // Since tables have a limited number of samples (default is 4k)
+    public int getSampleDirectoryNumber(String sampleId, int sampleMod) { // this is based on sample id
+        // sample ids 1-4000 will go in directory 001
+        int sampleIdInt = Integer.valueOf(sampleId); // TODO--should sampleId just get refactored as a long?
+        // subtract 1 from the sample id to make it 1-index (or do we want to 0-index?) and add 1 to the dir
+        int directoryNumber = Math.floorDiv((sampleIdInt - 1), sampleMod) + 1; // TODO omg write some unit tests
+        return directoryNumber;
+    }
+
     // Inside the parent directory, a directory for each chromosome will be created, with a pet directory and vet directory in each one.
     // Each pet and vet directory will hold all of the pet and vet tsvs for each sample
     // A metadata directory will be created, with a metadata tsv for each sample
@@ -168,19 +178,93 @@ public final class BlahVariantWalker extends VariantWalker {
             throw new UserException("Could not find sample mapping file");
         }
 
-        // If the metadata directory doesn't exist yet, create it
-        parentDirectory = parentOutputDirectory.toPath();
-        final String metadataDirectoryName = "metadata";
-        final Path metadataDirectoryPath = parentDirectory.resolve(metadataDirectoryName);
-        final File sampleMetadataOutputDirectory = new File(metadataDirectoryPath.toString());
+        // Mod the sample directories
+        final int sampleMod = 4000; // TODO hardcoded for now--potentially an input param?
+        int sampleDirectoryNumber = getSampleDirectoryNumber(sampleId, sampleMod);
+        parentDirectory = parentOutputDirectory.toPath(); // TODO do we need this? More efficient way to do this?
 
+        // If this sample set directory doesn't exist yet -- create it
+        final String sampleDirectoryName = String.valueOf(sampleDirectoryNumber);
+        final Path sampleDirectoryPath = parentDirectory.resolve(sampleDirectoryName);
+        final File sampleDirectory = new File(sampleDirectoryPath.toString());
+        if (! sampleDirectory.exists()){
+            sampleDirectory.mkdir();
+        }
+
+
+        // If the pet directory inside it doesn't exist yet -- create it
+        final String petDirectoryName = "pet";
+        final Path petDirectoryPath = sampleDirectoryPath.resolve(petDirectoryName);
+        final File petDirectory = new File(petDirectoryPath.toString());
+        if (! petDirectory.exists()){
+            petDirectory.mkdir();
+        }
+        // If the vet directory inside it doesn't exist yet -- create it
+        final String vetDirectoryName = "vet";
+        final Path vetDirectoryPath = sampleDirectoryPath.resolve(vetDirectoryName);
+        final File vetDirectory = new File(vetDirectoryPath.toString());
+        if (! vetDirectory.exists()){
+            vetDirectory.mkdir();
+        }
+
+        // If the metadata directory inside it doesn't exist yet, create it
+        final String metadataDirectoryName = "metadata";
+        final Path metadataDirectoryPath = sampleDirectoryPath.resolve(metadataDirectoryName);
+        final File sampleMetadataOutputDirectory = new File(metadataDirectoryPath.toString());
         if (! sampleMetadataOutputDirectory.exists()){
             sampleMetadataOutputDirectory.mkdir();
         }
 
-        // Create a metadata file to go into it for _this_ sample
-        final String sampleMetadataName = sampleName + FILETYPE;
-        final Path sampleMetadataOutput = metadataDirectoryPath.resolve(sampleMetadataName);
+        // if the pet & vet & metadata tsvs don't exist yet -- create them
+
+        try {
+            // Create a pet file to go into the pet dir for _this_ sample
+            final String petOutputName = sampleName + petDirectoryName + FILETYPE;
+            final Path petOutputPath = petDirectoryPath.resolve(petOutputName);
+            // write header to it
+            List<String> petHeader = BlahPetCreation.getHeaders();
+            petWriter = new SimpleXSVWriter(petOutputPath, SEPARATOR);
+            petWriter.setHeaderLine(petHeader);
+        } catch (final IOException e) {
+            throw new UserException("Could not create pet outputs", e);
+        }
+
+        try {
+            // Create a vet file to go into the pet dir for _this_ sample
+            final String vetOutputName = sampleName + vetDirectoryName + FILETYPE;
+            final Path vetOutputPath = vetDirectoryPath.resolve(vetOutputName);
+            // write header to it
+            List<String> vetHeader = isArray ?  BlahVetArrayCreation.getHeaders(): BlahVetCreation.getHeaders();
+            vetWriter = new SimpleXSVWriter(vetOutputPath, SEPARATOR);
+            vetWriter.setHeaderLine(vetHeader);
+        } catch (final IOException e) {
+            throw new UserException("Could not create vet outputs", e);
+        }
+
+        try {
+            // Create a metadata file to go into the metadata dir for _this_ sample
+            // TODO--this should just be one file per sample set?
+            final String sampleMetadataName = sampleName + metadataDirectoryName+ FILETYPE;
+            final Path sampleMetadataOutputPath = metadataDirectoryPath.resolve(sampleMetadataName);
+            // write header to it
+            List<String> sampleListHeader = BlahSampleListCreation.getHeaders();
+            sampleMetadataWriter = new SimpleXSVWriter(sampleMetadataOutputPath, SEPARATOR);
+            sampleMetadataWriter.setHeaderLine(sampleListHeader);
+            // write values
+            List<String> intervalList = userIntervals.stream().map(interval -> interval.toString())
+                    .collect(Collectors.toList());
+            String intervalListBlob = StringUtils.join(intervalList, ", ");
+            String intervalListMd5 = Utils.calcMD5(intervalListBlob);
+            final List<String> TSVLineToCreateSampleMetadata = BlahSampleListCreation.createSampleListRow(
+                    sampleName,
+                    sampleId,
+                    intervalListMd5,
+                    BlahPetCreation.GQStateEnum.valueOf(gqStateToIgnore));
+            sampleMetadataWriter.getNewLineBuilder().setRow(TSVLineToCreateSampleMetadata).write();
+
+        } catch (final IOException e) {
+            throw new UserException("Could not create sample metadata outputs", e);
+        }
 
 
         final SAMSequenceDictionary seqDictionary = getBestAvailableSequenceDictionary();
@@ -191,25 +275,6 @@ public final class BlahVariantWalker extends VariantWalker {
         final GenomeLocSortedSet genomeLocSortedSet = new GenomeLocSortedSet(new GenomeLocParser(seqDictionary));
         intervalArgumentGenomeLocSortedSet = GenomeLocSortedSet.createSetFromList(genomeLocSortedSet.getGenomeLocParser(), IntervalUtils.genomeLocsFromLocatables(genomeLocSortedSet.getGenomeLocParser(), intervalArgumentCollection.getIntervals(seqDictionary)));
         coverageLocSortedSet = new GenomeLocSortedSet(new GenomeLocParser(seqDictionary));
-
-        try {
-            List<String> intervalList = userIntervals.stream().map(interval -> interval.toString())
-                    .collect(Collectors.toList());
-            String intervalListBlob = StringUtils.join(intervalList, ", ");
-            String intervalListMd5 = Utils.calcMD5(intervalListBlob);
-            List<String> sampleListHeader = BlahSampleListCreation.getHeaders();
-            sampleMetadataWriter = new SimpleXSVWriter(sampleMetadataOutput, SEPARATOR);
-            sampleMetadataWriter.setHeaderLine(sampleListHeader);
-            final List<String> TSVLineToCreateSampleMetadata = BlahSampleListCreation.createSampleListRow(
-                    sampleName,
-                    sampleId,
-                    intervalListMd5,
-                    BlahPetCreation.GQStateEnum.valueOf(gqStateToIgnore));
-            sampleMetadataWriter.getNewLineBuilder().setRow(TSVLineToCreateSampleMetadata).write();
-
-        } catch (final IOException e) {
-            throw new UserException("Could not create sample metadata output", e);
-        }
     }
 
     public void setCoveredInterval( String variantChr, int start, int end) {
@@ -253,69 +318,6 @@ public final class BlahVariantWalker extends VariantWalker {
 
         final String variantChr = variant.getContig();
 
-/*        // If this contig directory don't exist yet -- create it
-        final String contigDirectoryName = variantChr;
-        final Path contigDirectoryPath = parentDirectory.resolve(contigDirectoryName);
-        final File contigDirectory = new File(contigDirectoryPath.toString());
-        if (! contigDirectory.exists()){
-            contigDirectory.mkdir();
-        }*/
-
-
-        // If this sample set directory doesn't exist yet -- create it
-        final String sampleDirectoryName = sampleSet;
-        final Path sampleDirectoryPath = parentDirectory.resolve(sampleDirectoryName);
-        final File sampleDirectory = new File(sampleDirectoryPath.toString());
-        if (! sampleDirectory.exists()){
-            sampleDirectory.mkdir();
-        }
-
-        // If the pet directory inside it doesn't exist yet -- create it
-        final String petDirectoryName = "pet";
-        final Path petDirectoryPath = sampleDirectoryPath.resolve(petDirectoryName);
-        final File petDirectory = new File(petDirectoryPath.toString());
-        if (! petDirectory.exists()){
-            petDirectory.mkdir();
-        }
-        // If the vet directory inside it doesn't exist yet -- create it
-        final String vetDirectoryName = "vet";
-        final Path vetDirectoryPath = sampleDirectoryPath.resolve(vetDirectoryName);
-        final File vetDirectory = new File(vetDirectoryPath.toString());
-        if (! vetDirectory.exists()){
-            vetDirectory.mkdir();
-        }
-        if (currentContig != variantChr ) {// if the pet & vet tsvs don't exist yet -- create them
-            try {
-                // Create a pet file to go into the pet dir for _this_ sample
-                final String petOutputName = sampleName + FILETYPE;
-                final Path petOutputPath = petDirectoryPath.resolve(petOutputName);
-                // Write to it
-                List<String> petHeader = BlahPetCreation.getHeaders();
-                final SimpleXSVWriter petWriter = new SimpleXSVWriter(petOutputPath, SEPARATOR);
-                petWriter.setHeaderLine(petHeader);
-                // TODO is this where I created the contig related bug? YES if there's no variants in the chr in the interval list
-                // petWriterCollection.put(variantChr, petWriter);
-            } catch (final IOException e) {
-                throw new UserException("Could not create pet outputs", e);
-            }
-
-            try {
-                // Create a vet file to go into the pet dir for _this_ sample
-                final String vetOutputName = sampleName + FILETYPE;
-                final Path vetOutputPath = vetDirectoryPath.resolve(vetOutputName);
-                // Write to it
-                List<String> vetHeader = isArray ?  BlahVetArrayCreation.getHeaders(): BlahVetCreation.getHeaders();
-                final SimpleXSVWriter vetWriter = new SimpleXSVWriter(vetOutputPath, SEPARATOR);
-                vetWriter.setHeaderLine(vetHeader);
-                // vetWriterCollection.put(variantChr, vetWriter);
-            } catch (final IOException e) {
-                throw new UserException("Could not create vet outputs", e);
-            }
-            currentContig = variantChr;
-        }
-
-        //final SimpleXSVWriter vetWriter = vetWriterCollection.get(variantChr);
-
         // create VET output
         if (!variant.isReferenceBlock()) {
             int start = variant.getStart();
@@ -333,8 +335,7 @@ public final class BlahVariantWalker extends VariantWalker {
                     TSVLinesToCreatePet = BlahPetCreation.createArrayPositionRows(get_location(variantChr, start), get_location(variantChr, end), variant, sampleId);
 
                     for (List<String> TSVLineToCreatePet : TSVLinesToCreatePet) {
-                        //final SimpleXSVWriter petWriter = petWriterCollection.get(variantChr);
-                        petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
+\                        petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
                     }
                 } else {
                     final List<String> TSVLineToCreateVet = BlahVetCreation.createVariantRow(
@@ -354,7 +355,6 @@ public final class BlahVariantWalker extends VariantWalker {
 
                     // write the position to the XSV
                     for (List<String> TSVLineToCreatePet : TSVLinesToCreatePet) {
-                        // final SimpleXSVWriter petWriter = petWriterCollection.get(variantChr);
                         petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
                     }
                 }
@@ -414,7 +414,6 @@ public final class BlahVariantWalker extends VariantWalker {
 
                 // write the position to the XSV
                 for (List<String> TSVLineToCreatePet : TSVLinesToCreatePet) {
-                    //final SimpleXSVWriter petWriter = petWriterCollection.get(variantChr);
                     petWriter.getNewLineBuilder().setRow(TSVLineToCreatePet).write();
                 }
             }
